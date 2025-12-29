@@ -6,11 +6,11 @@
 <script>
     // ベースURLを設定（/public/を含む環境に対応）
     window.APP_BASE_URL = '{{ url("/") }}';
-    console.log('APP_BASE_URL:', window.APP_BASE_URL);
-    console.log('現在のURL:', window.location.href);
+    // console.log('APP_BASE_URL:', window.APP_BASE_URL);
+    // console.log('現在のURL:', window.location.href);
 
     // 簡単なテスト
-    console.log('スクリプトが読み込まれました');
+    // console.log('スクリプトが読み込まれました');
 </script>
 <div class="mb-6">
     <h2 class="text-3xl font-bold text-gray-900 mb-2">空き状況を確認</h2>
@@ -20,7 +20,7 @@
 <!-- 位置情報更新ボタン -->
 <div class="mb-4">
     <button id="updateLocationBtn"
-            onclick="console.log('onclickイベント発火'); handleLocationUpdate(event); return false;"
+            onclick="handleLocationUpdate(event); return false;"
             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md cursor-pointer">
         📍 位置情報を更新
     </button>
@@ -36,15 +36,15 @@ function handleLocationUpdate(event) {
         event.stopPropagation();
     }
 
-    console.log('handleLocationUpdate: ボタンがクリックされました');
+    // console.log('handleLocationUpdate: ボタンがクリックされました');
 
     const statusEl = document.getElementById('locationStatus');
     const debugEl = document.getElementById('debugInfo');
 
-    if (debugEl) {
-        debugEl.textContent = 'ボタンがクリックされました - ' + new Date().toLocaleTimeString();
-        debugEl.className = 'mt-2 text-xs text-green-600';
-    }
+    // if (debugEl) {
+    //     debugEl.textContent = 'ボタンがクリックされました - ' + new Date().toLocaleTimeString();
+    //     debugEl.className = 'mt-2 text-xs text-green-600';
+    // }
 
     if (!statusEl) {
         alert('エラー: ステータス要素が見つかりません');
@@ -61,7 +61,7 @@ function handleLocationUpdate(event) {
     function tryGetLocation() {
         // グローバル関数が利用可能か確認
         if (typeof window.getCurrentLocation === 'function') {
-            console.log('handleLocationUpdate: getCurrentLocation関数を使用');
+            // console.log('handleLocationUpdate: getCurrentLocation関数を使用');
             window.getCurrentLocation().catch(error => {
                 console.error('位置情報取得エラー:', error);
                 statusEl.textContent = '位置情報の取得に失敗しました';
@@ -70,10 +70,10 @@ function handleLocationUpdate(event) {
         } else if (retryCount < maxRetries) {
             // map.jsがまだ読み込まれていない場合は少し待って再試行
             retryCount++;
-            console.log(`handleLocationUpdate: getCurrentLocation関数を待機中... (${retryCount}/${maxRetries})`);
+            // console.log(`handleLocationUpdate: getCurrentLocation関数を待機中... (${retryCount}/${maxRetries})`);
             setTimeout(tryGetLocation, 200);
         } else {
-            console.log('handleLocationUpdate: map.jsが読み込まれていないため、直接位置情報を取得');
+            // console.log('handleLocationUpdate: map.jsが読み込まれていないため、直接位置情報を取得');
             // 直接位置情報を取得
             if (!navigator.geolocation) {
                 statusEl.textContent = 'このブラウザは位置情報をサポートしていません';
@@ -113,18 +113,18 @@ function handleLocationUpdate(event) {
                         // 地図要素が表示されるまで少し待つ
                         setTimeout(() => {
                             // 地図を初期化・表示
-                            console.log('地図初期化を開始します...');
+                            // console.log('地図初期化を開始します...');
                             initMapInline(lat, lng).then(() => {
-                                console.log('地図初期化が完了しました');
+                                // console.log('地図初期化が完了しました');
                                 // 店舗データを取得して表示
                                 const baseUrl = window.APP_BASE_URL || '';
                                 const apiUrl = `${baseUrl}/api/shops/nearby`;
-                                console.log('API URL:', apiUrl);
+                                // console.log('API URL:', apiUrl);
 
                                 fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}&radius=10`)
                                     .then(response => response.json())
                                     .then(data => {
-                                        console.log('店舗データ:', data);
+                                        // console.log('店舗データ:', data);
                                         displayShopsOnMap(data, lat, lng);
                                     })
                                     .catch(error => {
@@ -171,17 +171,17 @@ let inlineMap = null;
 let inlineMarkers = [];
 
 function initMapInline(lat, lng) {
-    console.log('initMapInline呼び出し: lat=' + lat + ', lng=' + lng);
+    // console.log('initMapInline呼び出し: lat=' + lat + ', lng=' + lng);
     return new Promise((resolve, reject) => {
         // Leafletが読み込まれているか確認
         if (typeof L !== 'undefined') {
-            console.log('Leaflet.jsは既に読み込まれています');
-            console.log('Lオブジェクト:', L);
+            // console.log('Leaflet.jsは既に読み込まれています');
+            // console.log('Lオブジェクト:', L);
             try {
                 createMap(lat, lng);
                 // 少し遅延させてからresolve（地図が確実に描画されるまで待つ）
                 setTimeout(() => {
-                    console.log('initMapInline resolve');
+                    // console.log('initMapInline resolve');
                     resolve();
                 }, 500);
             } catch (error) {
@@ -189,7 +189,7 @@ function initMapInline(lat, lng) {
                 reject(error);
             }
         } else {
-            console.log('Leaflet.jsをCDNから読み込みます');
+            // console.log('Leaflet.jsをCDNから読み込みます');
             // Leaflet.jsをCDNから読み込む
             const leafletCSS = document.createElement('link');
             leafletCSS.rel = 'stylesheet';
@@ -203,7 +203,7 @@ function initMapInline(lat, lng) {
             leafletJS.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
             leafletJS.crossOrigin = '';
             leafletJS.onload = () => {
-                console.log('Leaflet.jsの読み込みが完了しました');
+                // console.log('Leaflet.jsの読み込みが完了しました');
                 // アイコン設定
                 delete L.Icon.Default.prototype._getIconUrl;
                 L.Icon.Default.mergeOptions({
@@ -224,9 +224,9 @@ function initMapInline(lat, lng) {
 }
 
 function createMap(lat, lng) {
-    console.log('createMap開始: lat=' + lat + ', lng=' + lng);
+    // console.log('createMap開始: lat=' + lat + ', lng=' + lng);
     const mapElement = document.getElementById('map');
-    console.log('mapElement:', mapElement);
+    // console.log('mapElement:', mapElement);
 
     if (!mapElement) {
         console.error('地図要素が見つかりません');
@@ -236,48 +236,48 @@ function createMap(lat, lng) {
 
     // 地図要素の親要素を確認
     const mapView = document.getElementById('mapView');
-    console.log('mapView要素:', mapView);
+    // console.log('mapView要素:', mapView);
     if (mapView) {
-        console.log('mapViewのクラス:', mapView.className);
-        console.log('mapViewがhiddenか:', mapView.classList.contains('hidden'));
+        // console.log('mapViewのクラス:', mapView.className);
+        // console.log('mapViewがhiddenか:', mapView.classList.contains('hidden'));
         // hiddenクラスを確実に削除
         mapView.classList.remove('hidden');
         mapView.style.display = 'block';
     }
 
     // 地図要素のスタイルを確認・設定
-    console.log('地図要素のサイズ（初期）:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
-    console.log('地図要素のスタイル:', window.getComputedStyle(mapElement).display);
-    console.log('地図要素の高さ（computed）:', window.getComputedStyle(mapElement).height);
+    // console.log('地図要素のサイズ（初期）:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
+    // console.log('地図要素のスタイル:', window.getComputedStyle(mapElement).display);
+    // console.log('地図要素の高さ（computed）:', window.getComputedStyle(mapElement).height);
 
     // 地図要素に明示的に高さを設定
     if (mapElement.offsetHeight < 100) {
-        console.log('地図要素の高さが不足しているため、明示的に設定します');
+        // console.log('地図要素の高さが不足しているため、明示的に設定します');
         mapElement.style.height = '600px';
         mapElement.style.minHeight = '600px';
     }
 
-    console.log('地図要素のサイズ（設定後）:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
+    // console.log('地図要素のサイズ（設定後）:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
 
     // 既存の地図を削除
     if (inlineMap) {
-        console.log('既存の地図を削除します');
+        // console.log('既存の地図を削除します');
         inlineMap.remove();
         inlineMap = null;
     }
 
     try {
-        console.log('地図を初期化します...');
+        // console.log('地図を初期化します...');
         // 地図を初期化
         inlineMap = L.map('map').setView([lat, lng], 16);
-        console.log('地図オブジェクトが作成されました:', inlineMap);
+        // console.log('地図オブジェクトが作成されました:', inlineMap);
 
         // タイルレイヤーを追加
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19,
         }).addTo(inlineMap);
-        console.log('タイルレイヤーを追加しました');
+        // console.log('タイルレイヤーを追加しました');
 
         // 現在地マーカーを追加
         const userMarker = L.marker([lat, lng], {
@@ -288,18 +288,18 @@ function createMap(lat, lng) {
             }),
         }).addTo(inlineMap);
         userMarker.bindPopup('現在地').openPopup();
-        console.log('現在地マーカーを追加しました');
+        // console.log('現在地マーカーを追加しました');
 
         // 地図のサイズを再計算（少し遅延させて確実に）
         setTimeout(() => {
             if (inlineMap) {
-                console.log('地図のサイズを再計算します');
+                // console.log('地図のサイズを再計算します');
                 inlineMap.invalidateSize();
-                console.log('地図のサイズ再計算完了');
+                // console.log('地図のサイズ再計算完了');
             }
         }, 300);
 
-        console.log('createMap完了');
+        // console.log('createMap完了');
     } catch (error) {
         console.error('地図作成エラー:', error);
         alert('地図の作成に失敗しました: ' + error.message);
@@ -452,7 +452,7 @@ function setupTabsInline() {
     }
 
     listTab.addEventListener('click', () => {
-        console.log('リストタブがクリックされました');
+        // console.log('リストタブがクリックされました');
         listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
         listTab.classList.remove('border-transparent', 'text-gray-500');
         mapTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
@@ -471,7 +471,7 @@ function setupTabsInline() {
     });
 
     mapTab.addEventListener('click', () => {
-        console.log('地図タブがクリックされました');
+        // console.log('地図タブがクリックされました'); // デバッグ用
         mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
         mapTab.classList.remove('border-transparent', 'text-gray-500');
         listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');

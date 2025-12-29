@@ -57,7 +57,7 @@ function initMap(lat = 35.6812, lng = 139.7671) {
 
 // 位置情報の取得（グローバル関数として公開）
 window.getCurrentLocation = async function getCurrentLocation() {
-    console.log('Map.js: getCurrentLocation 開始');
+    // console.log('Map.js: getCurrentLocation 開始');
     const statusEl = document.getElementById('locationStatus');
     const updateBtn = document.getElementById('updateLocationBtn');
 
@@ -186,7 +186,7 @@ window.fetchNearbyShops = async function fetchNearbyShops(lat, lng) {
         const baseUrl = window.APP_BASE_URL || '';
         const apiUrl = `${baseUrl}/api/shops/nearby`;
 
-        console.log('Map.js: API URL:', apiUrl);
+        // console.log('Map.js: API URL:', apiUrl);
 
         const response = await axios.get(apiUrl, {
             params: {
@@ -342,27 +342,27 @@ function setupDialog() {
 }
 
 // グローバル関数が確実に公開されていることを確認
-console.log('Map.js: モジュールが読み込まれました');
-console.log('Map.js: window.getCurrentLocation =', typeof window.getCurrentLocation);
-console.log('Map.js: window.fetchNearbyShops =', typeof window.fetchNearbyShops);
+// console.log('Map.js: モジュールが読み込まれました');
+// console.log('Map.js: window.getCurrentLocation =', typeof window.getCurrentLocation);
+// console.log('Map.js: window.fetchNearbyShops =', typeof window.fetchNearbyShops);
 
 // 初期化
 function initializeMap() {
-    console.log('Map.js: DOMContentLoaded');
-    console.log('Map.js: APP_BASE_URL =', window.APP_BASE_URL);
+    // console.log('Map.js: DOMContentLoaded');
+    // console.log('Map.js: APP_BASE_URL =', window.APP_BASE_URL);
 
     // 位置情報更新ボタン
     const updateBtn = document.getElementById('updateLocationBtn');
-    console.log('Map.js: updateBtn要素 =', updateBtn);
+    // console.log('Map.js: updateBtn要素 =', updateBtn);
 
     if (updateBtn) {
-        console.log('Map.js: 位置情報更新ボタンが見つかりました');
+        // console.log('Map.js: 位置情報更新ボタンが見つかりました');
         // onclickイベントが既に設定されている場合は、追加のイベントリスナーを設定しない
         // （インラインスクリプトと競合しないように）
         if (!updateBtn.hasAttribute('data-mapjs-listener')) {
             updateBtn.setAttribute('data-mapjs-listener', 'true');
             updateBtn.addEventListener('click', (e) => {
-                console.log('Map.js: 位置情報更新ボタンがクリックされました（addEventListener）');
+                // console.log('Map.js: 位置情報更新ボタンがクリックされました（addEventListener）');
                 // インラインスクリプトのonclickが先に実行される可能性があるため、
                 // ここでは何もしない（インラインスクリプトが処理する）
             });
