@@ -21,9 +21,10 @@
     RewriteRule ^vendor/.*$ - [F,L]
     RewriteRule ^node_modules/.*$ - [F,L]
 
-    # /public/へのリクエストはそのまま通す
-    RewriteCond %{REQUEST_URI} ^/public/
-    RewriteRule ^ - [L]
+    # /public/で始まるリクエストの場合、public/ディレクトリ内のパスにリライト
+    # これにより、public/.htaccessのルール（index.phpへのリライト）が適用される
+    RewriteCond %{REQUEST_URI} ^/public/(.*)$
+    RewriteRule ^.*$ public/%1 [E=DEBUG_ROOT_REWRITE:rewritten_to_public,L]
 
     # 既存のファイルやディレクトリでない場合、/public/にリライト
     RewriteCond %{REQUEST_FILENAME} !-f
