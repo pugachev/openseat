@@ -14,6 +14,7 @@
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
     # adminで始まるパスは常にindex.phpにリライト（最優先）
+    # REQUEST_URIが/adminまたはadminで始まる場合
     RewriteCond %{REQUEST_URI} ^/admin [OR]
     RewriteCond %{REQUEST_URI} ^admin
     RewriteRule ^.*$ index.php [L]

@@ -1,15 +1,22 @@
 <?php
-// デバッグ用：このファイルが実行されているか確認
+// デバッグ用：このファイルが実行されているか確認（最優先で実行）
+$logFile = __DIR__ . '/../storage/logs/debug.log';
+$logDir = dirname($logFile);
+if (!is_dir($logDir)) {
+    @mkdir($logDir, 0755, true);
+}
+
 $debugInfo = date('Y-m-d H:i:s') . " - index.php executed\n";
 $debugInfo .= "REQUEST_URI: " . ($_SERVER['REQUEST_URI'] ?? 'not set') . "\n";
 $debugInfo .= "SCRIPT_NAME: " . ($_SERVER['SCRIPT_NAME'] ?? 'not set') . "\n";
 $debugInfo .= "PATH_INFO: " . ($_SERVER['PATH_INFO'] ?? 'not set') . "\n";
 $debugInfo .= "REDIRECT_DEBUG_REWRITE: " . ($_SERVER['REDIRECT_DEBUG_REWRITE'] ?? 'not set') . "\n";
 $debugInfo .= "REDIRECT_DEBUG_ROOT_REWRITE: " . ($_SERVER['REDIRECT_DEBUG_ROOT_REWRITE'] ?? 'not set') . "\n";
+$debugInfo .= "REQUEST_FILENAME: " . ($_SERVER['REQUEST_FILENAME'] ?? 'not set') . "\n";
 $debugInfo .= "---\n";
 
 // 複数の場所にログを出力（パーミッションエラーを避けるため）
-@file_put_contents(__DIR__ . '/../storage/logs/debug.log', $debugInfo, FILE_APPEND);
+@file_put_contents($logFile, $debugInfo, FILE_APPEND);
 @file_put_contents(__DIR__ . '/debug_index.log', $debugInfo, FILE_APPEND);
 @file_put_contents(__DIR__ . '/../debug_root.log', $debugInfo, FILE_APPEND);
 @error_log($debugInfo);
