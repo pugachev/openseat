@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\Auth\LoginController;
+use App\Http\Controllers\Admin\Auth\RegisterController;
 use App\Http\Controllers\AdminShopController;
 use App\Http\Controllers\ShopController;
 use Illuminate\Support\Facades\Route;
@@ -10,8 +12,17 @@ Route::get('/api/shops/nearby', [ShopController::class, 'nearby'])->name('shops.
 Route::get('/shop/control/{secret_key}', [ShopController::class, 'edit'])->name('shops.edit');
 Route::post('/shop/control/{secret_key}/update', [ShopController::class, 'update'])->name('shops.update');
 
-// 管理者向けルート
+// 管理者向け認証ルート（認証不要）
 Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+    Route::post('/register', [RegisterController::class, 'register']);
+});
+
+// 管理者向けルート（認証必須）
+Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     // /admin にアクセスした場合は /admin/shops にリダイレクト
     Route::get('/', function () {
         return redirect()->route('admin.shops.index');
