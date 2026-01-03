@@ -34,11 +34,12 @@ class RegisterController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'role' => 'orner',
         ]);
 
         Auth::login($user);
 
-        return redirect()->route('admin.shops.index')
-            ->with('success', 'アカウントを登録しました');
+        return redirect()->route('admin.shops.create')
+            ->with('success', 'アカウントを登録しました。続けて店舗情報を登録してください');
     }
 }
