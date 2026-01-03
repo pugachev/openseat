@@ -121,7 +121,7 @@ function handleLocationUpdate(event) {
                                 const apiUrl = `${baseUrl}/api/shops/nearby`;
                                 // console.log('API URL:', apiUrl);
 
-                                fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}&radius=10`)
+                                fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}`)
                                     .then(response => response.json())
                                     .then(data => {
                                         // console.log('店舗データ:', data);
@@ -495,6 +495,21 @@ function setupTabsInline() {
 function initializeInline() {
     setupTabsInline();
     setupDialogInline();
+}
+
+// ダイアログの初期化（閉じるボタンのイベント設定など）
+function setupDialogInline() {
+    const dialog = document.getElementById('shopDialog');
+    const closeBtn = document.getElementById('closeDialogBtn');
+    if (!dialog || !closeBtn) return;
+    closeBtn.addEventListener('click', () => {
+        dialog.classList.add('hidden');
+    });
+    dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) {
+            dialog.classList.add('hidden');
+        }
+    });
 }
 
 if (document.readyState === 'loading') {

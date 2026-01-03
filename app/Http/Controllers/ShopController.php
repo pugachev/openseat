@@ -59,7 +59,7 @@ class ShopController extends Controller
 
         $userLat = $request->latitude;
         $userLng = $request->longitude;
-        $radius = $request->radius ?? 10; // デフォルト10km
+        $radius = $request->radius ?? 1; // デフォルト10km
 
         // Haversine公式を使用して距離計算
         $shops = Shop::whereNotNull('latitude')

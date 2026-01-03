@@ -180,22 +180,23 @@ window.getCurrentLocation = async function getCurrentLocation() {
 }
 
 // 近くの店舗を取得して地図に表示（グローバル関数として公開）
-window.fetchNearbyShops = async function fetchNearbyShops(lat, lng) {
+// radiusを省略可能な引数にし、未指定時はAPI側のデフォルト値を使う
+window.fetchNearbyShops = async function fetchNearbyShops(lat, lng, radius = null) {
     try {
         // ベースURLを考慮したAPIエンドポイント
         const baseUrl = window.APP_BASE_URL || '';
         const apiUrl = `${baseUrl}/api/shops/nearby`;
 
-        // console.log('Map.js: API URL:', apiUrl);
+        // パラメータを組み立て
+        const params = {
+            latitude: lat,
+            longitude: lng
+        };
+        if (radius !== null && radius !== undefined) {
+            params.radius = radius;
+        }
 
-        const response = await axios.get(apiUrl, {
-            params: {
-                latitude: lat,
-                longitude: lng,
-                radius: 10, // 10km以内
-            },
-        });
-
+        const response = await axios.get(apiUrl, { params });
         const shops = response.data;
 
         // 既存のマーカーを削除
