@@ -8,6 +8,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
+    /**
+     * このユーザーが所有する店舗一覧
+     */
+    public function shops()
+    {
+        return $this->hasMany(Shop::class, 'user_id');
+    }
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;

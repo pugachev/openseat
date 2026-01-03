@@ -5,6 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 class Shop extends Model
+    /**
+     * オーナー（ユーザー）とのリレーション
+     */
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 {
     protected $fillable = [
         'name',

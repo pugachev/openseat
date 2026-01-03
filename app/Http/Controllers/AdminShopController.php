@@ -45,6 +45,7 @@ class AdminShopController extends Controller
         $validated['secret_key'] = Str::random(32);
         $validated['status'] = $validated['status'] ?? Shop::STATUS_AVAILABLE;
 
+        $validated['user_id'] = auth()->id();
         $shop = Shop::create($validated);
 
         return redirect()
