@@ -14,7 +14,9 @@ class AdminShopController extends Controller
      */
     public function index()
     {
-        $shops = Shop::orderBy('created_at', 'desc')->get();
+        $shops = Shop::where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->get();
         
         return view('admin.shops.index', compact('shops'));
     }
