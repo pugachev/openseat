@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Shop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use GuzzleHttp\Client;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class AdminShopController extends Controller
@@ -43,10 +45,32 @@ class AdminShopController extends Controller
             'status' => 'nullable|integer|in:0,1,2',
         ]);
 
+        // 緯度経度未入力ならGeocoding.jpで自動取得
+        if (empty($validated['latitude']) || empty($validated['longitude'])) {
+            try {
+                $client = new Client(['timeout' => 5]);
+                $res = $client->get('https://www.geocoding.jp/api/', [
+                    'query' => [
+                        'q' => trim($validated['address']),
+                    ],
+                    'headers' => [
+                        'User-Agent' => 'OpenSeat/1.0 (your@email.com)'
+                    ]
+                ]);
+                $xml = simplexml_load_string($res->getBody()->getContents());
+                \Log::info('Geocoding.jp API response:', (array)$xml);
+                if (isset($xml->coordinate->lat) && isset($xml->coordinate->lng)) {
+                    $validated['latitude'] = (string)$xml->coordinate->lat;
+                    $validated['longitude'] = (string)$xml->coordinate->lng;
+                }
+            } catch (\Exception $e) {
+                Log::error('Geocoding.jp geocode failed: ' . $e->getMessage());
+            }
+        }
+
         // secret_keyを自動生成
         $validated['secret_key'] = Str::random(32);
         $validated['status'] = $validated['status'] ?? Shop::STATUS_AVAILABLE;
-
         $validated['user_id'] = auth()->id();
         $shop = Shop::create($validated);
 

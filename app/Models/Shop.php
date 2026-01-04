@@ -21,6 +21,7 @@ class Shop extends Model
         'longitude',
         'status',
         'secret_key',
+        'user_id',
     ];
 
     /**
