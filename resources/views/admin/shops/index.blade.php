@@ -31,7 +31,8 @@
         </div>
     @else
         <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
+            <div class="table-responsive">
+            <table class="table min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -111,6 +112,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
     @endif
 </div>

@@ -45,26 +45,27 @@ class AdminShopController extends Controller
             'status' => 'nullable|integer|in:0,1,2',
         ]);
 
-        // 緯度経度未入力ならGeocoding.jpで自動取得
+        // 緯度経度未入力ならGoogle Maps Geocoding APIで自動取得
         if (empty($validated['latitude']) || empty($validated['longitude'])) {
             try {
                 $client = new Client(['timeout' => 5]);
-                $res = $client->get('https://www.geocoding.jp/api/', [
+                $apiKey = env('GOOGLE_MAPS_API_KEY');
+                $address = trim($validated['address']);
+                $res = $client->get('https://maps.googleapis.com/maps/api/geocode/json', [
                     'query' => [
-                        'q' => trim($validated['address']),
+                        'address' => $address,
+                        'key' => $apiKey,
+                        'language' => 'ja',
                     ],
-                    'headers' => [
-                        'User-Agent' => 'OpenSeat/1.0 (your@email.com)'
-                    ]
                 ]);
-                $xml = simplexml_load_string($res->getBody()->getContents());
-                \Log::info('Geocoding.jp API response:', (array)$xml);
-                if (isset($xml->coordinate->lat) && isset($xml->coordinate->lng)) {
-                    $validated['latitude'] = (string)$xml->coordinate->lat;
-                    $validated['longitude'] = (string)$xml->coordinate->lng;
+                $data = json_decode($res->getBody(), true);
+                \Log::info('Google Maps Geocoding API response:', $data);
+                if (!empty($data['results'][0]['geometry']['location']['lat']) && !empty($data['results'][0]['geometry']['location']['lng'])) {
+                    $validated['latitude'] = $data['results'][0]['geometry']['location']['lat'];
+                    $validated['longitude'] = $data['results'][0]['geometry']['location']['lng'];
                 }
             } catch (\Exception $e) {
-                Log::error('Geocoding.jp geocode failed: ' . $e->getMessage());
+                Log::error('Google Maps geocode failed: ' . $e->getMessage());
             }
         }
 
