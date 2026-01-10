@@ -93,19 +93,23 @@ window.getCurrentLocation = async function getCurrentLocation() {
                 statusEl.textContent = `位置情報を取得しました（緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}）`;
                 statusEl.className = 'mt-2 text-sm text-green-600';
 
-                // 地図タブに自動的に切り替える
+                // 地図タブは既にアクティブの可能性があるが、念のため確認
                 const mapTab = document.getElementById('mapTab');
                 const listTab = document.getElementById('listTab');
                 const listView = document.getElementById('listView');
                 const mapView = document.getElementById('mapView');
 
                 if (mapTab && mapView) {
-                    // 地図タブをアクティブにする
+                    // 地図タブをアクティブにする（既にアクティブの場合もある）
                     mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
                     mapTab.classList.remove('border-transparent', 'text-gray-500');
-                    listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                    listTab.classList.add('border-transparent', 'text-gray-500');
-                    listView.classList.add('hidden');
+                    if (listTab) {
+                        listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                        listTab.classList.add('border-transparent', 'text-gray-500');
+                    }
+                    if (listView) {
+                        listView.classList.add('hidden');
+                    }
                     mapView.classList.remove('hidden');
                 }
 
@@ -179,6 +183,67 @@ window.getCurrentLocation = async function getCurrentLocation() {
     });
 }
 
+// リスト表示を更新する関数（グローバル関数として公開）
+window.updateShopList = function updateShopList(shops) {
+    const container = document.getElementById('shopListContainer');
+    if (!container) {
+        console.error('リストコンテナが見つかりません');
+        return;
+    }
+
+    // コンテナをクリア
+    container.innerHTML = '';
+
+    if (shops.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12 col-span-full">
+                <p class="text-gray-500">近くに店舗が見つかりませんでした</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 店舗カードを生成
+    shops.forEach(shop => {
+        const statusLabel = shop.status_label || (shop.status === 0 ? '空き' : shop.status === 1 ? '待ち' : '満席');
+        const statusClass = shop.status === 0 
+            ? 'bg-green-100 text-green-800' 
+            : shop.status === 1 
+            ? 'bg-yellow-100 text-yellow-800' 
+            : 'bg-red-100 text-red-800';
+
+        const shopCard = document.createElement('div');
+        shopCard.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow';
+        shopCard.innerHTML = `
+            <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">${shop.name}</h3>
+                    <span class="px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
+                        ${statusLabel}
+                    </span>
+                </div>
+
+                <div class="space-y-2 mb-4">
+                    <p class="text-gray-600 text-sm">
+                        <span class="font-medium">住所:</span> ${shop.address || ''}
+                    </p>
+                    <p class="text-gray-600 text-sm">
+                        <span class="font-medium">電話:</span> ${shop.phone || ''}
+                    </p>
+                    ${shop.distance ? `<p class="text-gray-600 text-sm"><span class="font-medium">距離:</span> ${shop.distance}km</p>` : ''}
+                </div>
+
+                <a href="tel:${shop.phone || ''}"
+                   class="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <span class="mr-2">📞</span>
+                    電話する
+                </a>
+            </div>
+        `;
+        container.appendChild(shopCard);
+    });
+};
+
 // 近くの店舗を取得して地図に表示（グローバル関数として公開）
 // radiusを省略可能な引数にし、未指定時はAPI側のデフォルト値を使う
 window.fetchNearbyShops = async function fetchNearbyShops(lat, lng, radius = null) {
@@ -205,6 +270,10 @@ window.fetchNearbyShops = async function fetchNearbyShops(lat, lng, radius = nul
 
         if (shops.length === 0) {
             alert('近くに店舗が見つかりませんでした');
+            // リスト表示も更新
+            if (typeof window.updateShopList === 'function') {
+                window.updateShopList([]);
+            }
             return;
         }
 
@@ -248,9 +317,18 @@ window.fetchNearbyShops = async function fetchNearbyShops(lat, lng, radius = nul
             map.fitBounds(group.getBounds().pad(0.1));
         }
 
+        // リスト表示も更新
+        if (typeof window.updateShopList === 'function') {
+            window.updateShopList(shops);
+        }
+
     } catch (error) {
         console.error('店舗情報の取得に失敗しました:', error);
         alert('店舗情報の取得に失敗しました');
+        // エラー時もリストを空にする
+        if (typeof window.updateShopList === 'function') {
+            window.updateShopList([]);
+        }
     }
 }
 
@@ -296,6 +374,19 @@ function setupTabs() {
     const mapTab = document.getElementById('mapTab');
     const listView = document.getElementById('listView');
     const mapView = document.getElementById('mapView');
+
+    if (!listTab || !mapTab || !listView || !mapView) {
+        console.error('タブ要素が見つかりません');
+        return;
+    }
+
+    // 初期状態を設定（地図タブがアクティブ）
+    mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+    mapTab.classList.remove('border-transparent', 'text-gray-500');
+    listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+    listTab.classList.add('border-transparent', 'text-gray-500');
+    listView.classList.add('hidden');
+    mapView.classList.remove('hidden');
 
     listTab.addEventListener('click', () => {
         listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
@@ -378,7 +469,7 @@ function initializeMap() {
     // ダイアログ
     setupDialog();
 
-    // 地図を初期化（デフォルトは東京）
+    // 地図を初期化（デフォルトは東京、初期表示が地図タブなので必ず初期化）
     if (document.getElementById('map')) {
         initMap();
     }

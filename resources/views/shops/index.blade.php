@@ -91,14 +91,14 @@ function handleLocationUpdate(event) {
                     statusEl.textContent = `位置情報を取得しました（緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}）`;
                     statusEl.className = 'mt-2 text-sm text-green-600';
 
-                    // 地図タブに切り替え
+                    // 地図タブは既にアクティブのはず（初期表示が地図タブなので）
                     const mapTab = document.getElementById('mapTab');
                     const listTab = document.getElementById('listTab');
                     const listView = document.getElementById('listView');
                     const mapView = document.getElementById('mapView');
 
                     if (mapTab && mapView) {
-                        // 地図タブをアクティブにする
+                        // 地図タブをアクティブにする（既にアクティブの場合もある）
                         mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
                         mapTab.classList.remove('border-transparent', 'text-gray-500');
                         if (listTab) {
@@ -126,11 +126,19 @@ function handleLocationUpdate(event) {
                                     .then(data => {
                                         // console.log('店舗データ:', data);
                                         displayShopsOnMap(data, lat, lng);
+                                        // リスト表示も更新（displayShopsOnMap内で呼ばれるが、念のため）
+                                        if (typeof updateShopList === 'function') {
+                                            updateShopList(data);
+                                        }
                                     })
                                     .catch(error => {
                                         console.error('APIエラー:', error);
                                         statusEl.textContent = '店舗情報の取得に失敗しました';
                                         statusEl.className = 'mt-2 text-sm text-red-600';
+                                        // エラー時もリストを空にする
+                                        if (typeof updateShopList === 'function') {
+                                            updateShopList([]);
+                                        }
                                     });
                             }).catch(error => {
                                 console.error('地図初期化エラー:', error);
@@ -306,6 +314,67 @@ function createMap(lat, lng) {
     }
 }
 
+// リスト表示を更新する関数
+function updateShopList(shops) {
+    const container = document.getElementById('shopListContainer');
+    if (!container) {
+        console.error('リストコンテナが見つかりません');
+        return;
+    }
+
+    // コンテナをクリア
+    container.innerHTML = '';
+
+    if (shops.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12 col-span-full">
+                <p class="text-gray-500">近くに店舗が見つかりませんでした</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 店舗カードを生成
+    shops.forEach(shop => {
+        const statusLabel = shop.status_label || (shop.status === 0 ? '空き' : shop.status === 1 ? '待ち' : '満席');
+        const statusClass = shop.status === 0 
+            ? 'bg-green-100 text-green-800' 
+            : shop.status === 1 
+            ? 'bg-yellow-100 text-yellow-800' 
+            : 'bg-red-100 text-red-800';
+
+        const shopCard = document.createElement('div');
+        shopCard.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow';
+        shopCard.innerHTML = `
+            <div class="p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">${shop.name}</h3>
+                    <span class="px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
+                        ${statusLabel}
+                    </span>
+                </div>
+
+                <div class="space-y-2 mb-4">
+                    <p class="text-gray-600 text-sm">
+                        <span class="font-medium">住所:</span> ${shop.address || ''}
+                    </p>
+                    <p class="text-gray-600 text-sm">
+                        <span class="font-medium">電話:</span> ${shop.phone || ''}
+                    </p>
+                    ${shop.distance ? `<p class="text-gray-600 text-sm"><span class="font-medium">距離:</span> ${shop.distance}km</p>` : ''}
+                </div>
+
+                <a href="tel:${shop.phone || ''}"
+                   class="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <span class="mr-2">📞</span>
+                    電話する
+                </a>
+            </div>
+        `;
+        container.appendChild(shopCard);
+    });
+}
+
 function displayShopsOnMap(shops, userLat, userLng) {
     if (!inlineMap) {
         console.error('地図が初期化されていません');
@@ -318,6 +387,8 @@ function displayShopsOnMap(shops, userLat, userLng) {
 
     if (shops.length === 0) {
         alert('近くに店舗が見つかりませんでした');
+        // リスト表示も更新
+        updateShopList([]);
         return;
     }
 
@@ -387,6 +458,9 @@ function displayShopsOnMap(shops, userLat, userLng) {
             maxZoom: 16
         });
     }
+
+    // リスト表示も更新
+    updateShopList(shops);
 }
 
 function showShopDialogInline(shop) {
@@ -451,6 +525,14 @@ function setupTabsInline() {
         return;
     }
 
+    // 初期状態を設定（地図タブがアクティブ）
+    mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+    mapTab.classList.remove('border-transparent', 'text-gray-500');
+    listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+    listTab.classList.add('border-transparent', 'text-gray-500');
+    listView.classList.add('hidden');
+    mapView.classList.remove('hidden');
+
     listTab.addEventListener('click', () => {
         // console.log('リストタブがクリックされました');
         listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
@@ -495,6 +577,21 @@ function setupTabsInline() {
 function initializeInline() {
     setupTabsInline();
     setupDialogInline();
+    
+    // 初期表示が地図タブなので、地図を初期化（デフォルトは東京）
+    // map.jsが読み込まれている場合はそちらで初期化されるが、
+    // 読み込まれていない場合に備えて初期化を試みる
+    setTimeout(() => {
+        const mapElement = document.getElementById('map');
+        if (mapElement && !inlineMap && typeof L !== 'undefined') {
+            // Leafletが読み込まれている場合は初期化
+            inlineMap = L.map('map').setView([35.6812, 139.7671], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+            }).addTo(inlineMap);
+        }
+    }, 100);
 }
 
 // ダイアログの初期化（閉じるボタンのイベント設定など）
@@ -546,61 +643,27 @@ if (document.readyState === 'loading') {
 </style>
 <div class="mb-6 border-b border-gray-200">
     <nav class="flex space-x-8">
-        <button id="listTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
-            リスト表示
-        </button>
-        <button id="mapTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
+        <button id="mapTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
             地図表示
+        </button>
+        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
+            リスト表示
         </button>
     </nav>
 </div>
 
-<!-- リスト表示エリア -->
-<div id="listView" class="tab-content">
-    @if($shops->isEmpty())
-        <div class="text-center py-12">
-            <p class="text-gray-500">登録されている店舗がありません</p>
-        </div>
-    @else
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            @foreach($shops as $shop)
-                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                    <div class="p-6">
-                        <div class="flex items-start justify-between mb-4">
-                            <h3 class="text-xl font-semibold text-gray-900">{{ $shop->name }}</h3>
-                            <span class="px-3 py-1 rounded-full text-sm font-medium
-                                @if($shop->status === 0) bg-green-100 text-green-800
-                                @elseif($shop->status === 1) bg-yellow-100 text-yellow-800
-                                @else bg-red-100 text-red-800
-                                @endif">
-                                {{ $shop->status_label }}
-                            </span>
-                        </div>
-
-                        <div class="space-y-2 mb-4">
-                            <p class="text-gray-600 text-sm">
-                                <span class="font-medium">住所:</span> {{ $shop->address }}
-                            </p>
-                            <p class="text-gray-600 text-sm">
-                                <span class="font-medium">電話:</span> {{ $shop->phone }}
-                            </p>
-                        </div>
-
-                        <a href="tel:{{ $shop->phone }}"
-                           class="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            <span class="mr-2">📞</span>
-                            電話する
-                        </a>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    @endif
+<!-- 地図表示エリア -->
+<div id="mapView" class="tab-content">
+    <div id="map" class="w-full h-[600px] rounded-lg shadow-md border border-gray-200"></div>
 </div>
 
-<!-- 地図表示エリア -->
-<div id="mapView" class="tab-content hidden">
-    <div id="map" class="w-full h-[600px] rounded-lg shadow-md border border-gray-200"></div>
+<!-- リスト表示エリア -->
+<div id="listView" class="tab-content hidden">
+    <div id="shopListContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="text-center py-12 col-span-full">
+            <p class="text-gray-500">位置情報を更新すると、近くの店舗が表示されます</p>
+        </div>
+    </div>
 </div>
 
 <!-- 店舗情報ダイアログ -->
