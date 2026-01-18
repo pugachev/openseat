@@ -17,16 +17,21 @@
     <p class="text-gray-600">現在の混雑状況を確認できます</p>
 </div>
 
-<!-- 位置情報更新ボタン -->
-<div class="mb-4">
+<!-- ボタンエリア -->
+<div class="mb-4 flex flex-wrap gap-4">
     <button id="updateLocationBtn"
             onclick="handleLocationUpdate(event); return false;"
             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md cursor-pointer">
         📍 位置情報を更新
     </button>
-    <p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
-    <p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
+    <button id="openRegisterModalBtn"
+            onclick="openRegisterModal(); return false;"
+            class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-md cursor-pointer">
+        🏪 店舗を登録
+    </button>
 </div>
+<p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
+<p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
 
 <script>
 // インラインで位置情報更新を処理（JavaScriptが読み込まれていない場合のフォールバック）
@@ -424,6 +429,9 @@ function displayShopsOnMap(shops, userLat, userLng) {
             icon: createCustomIcon(shop.status),
         }).addTo(inlineMap);
 
+        // マーカーに店舗データを保存（ステータス更新時に使用）
+        marker.shopData = shop;
+
         // ステータスラベルの取得
         let statusLabel = shop.status_label;
         if (!statusLabel) {
@@ -437,7 +445,8 @@ function displayShopsOnMap(shops, userLat, userLng) {
 
         marker.bindPopup(`
             <div class="text-center">
-                <strong>${shop.name}</strong><br>
+                <strong>${shop.name || '店舗名未設定'}</strong><br>
+                ${shop.category ? `<span class="text-xs">${shop.category}</span><br>` : ''}
                 <span class="text-sm">${statusLabel}</span>
             </div>
         `);
@@ -474,43 +483,206 @@ function showShopDialogInline(shop) {
         return;
     }
 
-    nameEl.textContent = shop.name;
+    nameEl.textContent = shop.name || '店舗名未設定';
 
-    const statusColors = {
-        0: 'bg-green-100 text-green-800',
-        1: 'bg-yellow-100 text-yellow-800',
-        2: 'bg-red-100 text-red-800',
-    };
-
-    // ステータスラベルの取得（APIから来ない場合は計算）
-    let statusLabel = shop.status_label;
-    if (!statusLabel) {
-        const statusLabels = {
-            0: '空き',
-            1: '待ち',
-            2: '満席'
-        };
-        statusLabel = statusLabels[shop.status] || '不明';
+    // 更新日時をフォーマット
+    let updateTime = '';
+    if (shop.updated_at) {
+        const date = new Date(shop.updated_at);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        updateTime = `${year}/${month}/${day} ${hours}:${minutes}に更新`;
     }
 
     contentEl.innerHTML = `
-        <div class="flex items-center justify-between mb-3">
-            <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[shop.status] || 'bg-gray-100 text-gray-800'}">
-                ${statusLabel}
-            </span>
+        <div class="space-y-3">
+            <!-- 業種表示 -->
+            ${shop.category ? `<p class="text-gray-600">
+                <span class="font-medium">業種:</span> ${shop.category}
+            </p>` : ''}
+            
+            <!-- ステータスセレクトボックス -->
+            <div>
+                <label for="dialogStatusSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                    ステータス
+                </label>
+                <select id="dialogStatusSelect" 
+                        data-secret-key="${shop.secret_key}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="0" ${shop.status == 0 ? 'selected' : ''}>🟢 空き</option>
+                    <option value="1" ${shop.status == 1 ? 'selected' : ''}>🟡 待ち</option>
+                    <option value="2" ${shop.status == 2 ? 'selected' : ''}>🔴 満席</option>
+                </select>
+            </div>
+            
+            <!-- 住所 -->
+            ${shop.address ? `<p class="text-gray-600">
+                <span class="font-medium">住所:</span> ${shop.address}
+            </p>` : ''}
+            
+            <!-- 電話番号 -->
+            ${shop.phone ? `<p class="text-gray-600">
+                <span class="font-medium">電話:</span> ${shop.phone}
+            </p>` : ''}
+            
+            <!-- 距離 -->
+            ${shop.distance ? `<p class="text-gray-600">
+                <span class="font-medium">距離:</span> ${shop.distance}km
+            </p>` : ''}
+            
+            <!-- 更新日時 -->
+            ${updateTime ? `<p class="text-xs text-gray-500 mt-2">${updateTime}</p>` : ''}
         </div>
-        <p class="text-gray-600">
-            <span class="font-medium">住所:</span> ${shop.address}
-        </p>
-        <p class="text-gray-600">
-            <span class="font-medium">電話:</span> ${shop.phone}
-        </p>
-        ${shop.distance ? `<p class="text-gray-600"><span class="font-medium">距離:</span> ${shop.distance}km</p>` : ''}
     `;
 
-    phoneEl.href = `tel:${shop.phone}`;
+    phoneEl.href = shop.phone ? `tel:${shop.phone}` : '#';
+    if (!shop.phone) {
+        phoneEl.classList.add('disabled', 'opacity-50', 'cursor-not-allowed');
+        phoneEl.onclick = (e) => e.preventDefault();
+    } else {
+        phoneEl.classList.remove('disabled', 'opacity-50', 'cursor-not-allowed');
+        phoneEl.onclick = null;
+    }
+
+    // ステータス変更イベントリスナーを追加
+    const statusSelect = document.getElementById('dialogStatusSelect');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function() {
+            updateShopStatus(this.value, this.dataset.secretKey);
+        });
+    }
 
     dialog.classList.remove('hidden');
+}
+
+// 店舗ステータス更新関数
+function updateShopStatus(status, secretKey) {
+    const statusSelect = document.getElementById('dialogStatusSelect');
+    const contentEl = document.getElementById('dialogShopContent');
+    if (!statusSelect || !secretKey || !contentEl) return;
+
+    const originalValue = statusSelect.dataset.originalValue || status;
+    statusSelect.disabled = true;
+
+    fetch(`/api/shops/${secretKey}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ status: parseInt(status) }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新日時を更新
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const updateTimeText = `${year}/${month}/${day} ${hours}:${minutes}に更新`;
+            
+            // 更新日時を表示
+            let updateTimeEl = contentEl.querySelector('.text-xs.text-gray-500');
+            if (!updateTimeEl) {
+                updateTimeEl = document.createElement('p');
+                updateTimeEl.className = 'text-xs text-gray-500 mt-2';
+                contentEl.appendChild(updateTimeEl);
+            }
+            updateTimeEl.textContent = updateTimeText;
+            
+            statusSelect.disabled = false;
+            
+            // 地図上のマーカーも更新（必要に応じて）
+            if (typeof inlineMarkers !== 'undefined' && inlineMarkers) {
+                inlineMarkers.forEach(marker => {
+                    const markerShop = marker.shopData;
+                    if (markerShop && markerShop.secret_key === secretKey) {
+                        markerShop.status = parseInt(status);
+                        // マーカーのアイコンを更新
+                        marker.setIcon(createCustomIcon(parseInt(status)));
+                    }
+                });
+            }
+        } else {
+            alert('ステータスの更新に失敗しました');
+            statusSelect.value = originalValue;
+            statusSelect.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('ステータスの更新中にエラーが発生しました');
+        statusSelect.value = originalValue;
+        statusSelect.disabled = false;
+    });
+}
+
+// 現在位置を取得して地図をリフレッシュする関数
+function refreshMapWithCurrentLocation() {
+    if (!navigator.geolocation) {
+        console.warn('このブラウザは位置情報をサポートしていません');
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            // 地図が既に初期化されている場合は、位置を更新
+            if (inlineMap) {
+                // 地図の中心を現在位置に移動
+                inlineMap.setView([lat, lng], 16);
+                
+                // 既存のマーカーを削除
+                inlineMarkers.forEach(marker => inlineMap.removeLayer(marker));
+                inlineMarkers = [];
+                
+                // 現在地マーカーを追加
+                const userMarker = L.marker([lat, lng], {
+                    icon: L.icon({
+                        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                    }),
+                }).addTo(inlineMap);
+                userMarker.bindPopup('現在地').openPopup();
+            } else {
+                // 地図が初期化されていない場合は初期化
+                initMapInline(lat, lng).catch(error => {
+                    console.error('地図初期化エラー:', error);
+                });
+            }
+            
+            // 店舗データを取得して表示
+            const baseUrl = window.APP_BASE_URL || '';
+            const apiUrl = `${baseUrl}/api/shops/nearby`;
+            
+            fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayShopsOnMap(data, lat, lng);
+                })
+                .catch(error => {
+                    console.error('APIエラー:', error);
+                });
+        },
+        function(error) {
+            console.warn('位置情報の取得に失敗しました:', error);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
 }
 
 // タブ切り替え機能
@@ -578,20 +750,54 @@ function initializeInline() {
     setupTabsInline();
     setupDialogInline();
     
-    // 初期表示が地図タブなので、地図を初期化（デフォルトは東京）
-    // map.jsが読み込まれている場合はそちらで初期化されるが、
-    // 読み込まれていない場合に備えて初期化を試みる
-    setTimeout(() => {
-        const mapElement = document.getElementById('map');
-        if (mapElement && !inlineMap && typeof L !== 'undefined') {
-            // Leafletが読み込まれている場合は初期化
-            inlineMap = L.map('map').setView([35.6812, 139.7671], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19,
-            }).addTo(inlineMap);
-        }
-    }, 100);
+    // 画面初期表示時に現在位置を自動取得して地図に表示
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                
+                // 地図を初期化
+                initMapInline(lat, lng).then(() => {
+                    // 店舗データを取得して表示
+                    const baseUrl = window.APP_BASE_URL || '';
+                    const apiUrl = `${baseUrl}/api/shops/nearby`;
+                    
+                    fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            displayShopsOnMap(data, lat, lng);
+                        })
+                        .catch(error => {
+                            console.error('APIエラー:', error);
+                        });
+                }).catch(error => {
+                    console.error('地図初期化エラー:', error);
+                });
+            },
+            function(error) {
+                // 位置情報取得失敗時はデフォルト位置（東京）で初期化
+                console.warn('位置情報の取得に失敗しました。デフォルト位置で地図を表示します。');
+                const defaultLat = 35.6812;
+                const defaultLng = 139.7671;
+                initMapInline(defaultLat, defaultLng).catch(error => {
+                    console.error('地図初期化エラー:', error);
+                });
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        // Geolocation APIがサポートされていない場合はデフォルト位置で初期化
+        const defaultLat = 35.6812;
+        const defaultLng = 139.7671;
+        initMapInline(defaultLat, defaultLng).catch(error => {
+            console.error('地図初期化エラー:', error);
+        });
+    }
 }
 
 // ダイアログの初期化（閉じるボタンのイベント設定など）
@@ -667,8 +873,8 @@ if (document.readyState === 'loading') {
 </div>
 
 <!-- 店舗情報ダイアログ -->
-<div id="shopDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+<div id="shopDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 9999;">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" style="z-index: 10000;">
         <div class="flex justify-between items-start mb-4">
             <h3 id="dialogShopName" class="text-2xl font-semibold text-gray-900"></h3>
             <button id="closeDialogBtn" class="text-gray-400 hover:text-gray-600">
@@ -689,5 +895,418 @@ if (document.readyState === 'loading') {
         </div>
     </div>
 </div>
+
+<!-- 店舗登録モーダル -->
+<div id="registerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="z-index: 9999;">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto" style="z-index: 10000;">
+        <!-- ヘッダー -->
+        <div class="flex justify-between items-center p-6 border-b border-gray-200">
+            <h3 class="text-2xl font-semibold text-gray-900">店舗を登録</h3>
+            <button id="closeRegisterModalBtn" 
+                    onclick="closeRegisterModal(); return false;"
+                    class="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- フォーム本体 -->
+        <form id="registerShopForm" action="{{ route('shops.register.store') }}" method="POST" class="p-6 space-y-4">
+            @csrf
+            
+            <!-- 業種 -->
+            <div>
+                <label for="category" class="block text-sm font-medium text-gray-700 mb-2">
+                    業種 <span class="text-red-500">*</span>
+                </label>
+                <select id="category" 
+                        name="category" 
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                    <option value="">選択してください</option>
+                    <option value="ヘアーサロン">ヘアーサロン</option>
+                    <option value="飲食">飲食</option>
+                    <option value="ボディケア">ボディケア</option>
+                </select>
+                @error('category')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <!-- 店舗名 -->
+            <div>
+                <label for="shopName" class="block text-sm font-medium text-gray-700 mb-2">
+                    店舗名（任意）
+                </label>
+                <input type="text" 
+                       id="shopName" 
+                       name="name" 
+                       value="{{ old('name') }}"
+                       placeholder="例: 〇〇サロン"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                @error('name')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <!-- 位置情報（hidden） -->
+            <input type="hidden" id="latitude" name="latitude" value="">
+            <input type="hidden" id="longitude" name="longitude" value="">
+
+            <!-- 位置情報取得ボタン -->
+            <div>
+                <button type="button" 
+                        id="getLocationBtn"
+                        onclick="getCurrentLocationForRegister(); return false;"
+                        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    📍 現在位置を取得
+                </button>
+                <p id="locationStatusForRegister" class="mt-2 text-sm text-gray-600"></p>
+                <p class="mt-2 text-xs text-gray-500">※「登録する」ボタンを押すと自動的に現在位置を取得します</p>
+            </div>
+
+            <!-- エラーメッセージ表示エリア -->
+            <div id="registerError" class="hidden text-sm text-red-600"></div>
+
+            <!-- フッター -->
+            <div class="flex gap-4 pt-4">
+                <button type="button" 
+                        onclick="closeRegisterModal(); return false;"
+                        class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+                    キャンセル
+                </button>
+                <button type="submit" 
+                        id="submitRegisterBtn"
+                        class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
+                    登録する
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// モーダルの開閉制御
+function openRegisterModal() {
+    const modal = document.getElementById('registerModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // 背景のスクロールを無効化
+        
+        // 地図ビューが非表示の場合は表示する（モーダル表示時にも地図を表示）
+        const mapView = document.getElementById('mapView');
+        const listView = document.getElementById('listView');
+        const mapTab = document.getElementById('mapTab');
+        const listTab = document.getElementById('listTab');
+        
+        if (mapView && mapView.classList.contains('hidden')) {
+            // 地図タブをアクティブにする
+            if (mapTab) {
+                mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+                mapTab.classList.remove('border-transparent', 'text-gray-500');
+            }
+            if (listTab) {
+                listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+                listTab.classList.add('border-transparent', 'text-gray-500');
+            }
+            // 地図ビューを表示
+            mapView.classList.remove('hidden');
+            mapView.style.display = 'block';
+            // リストビューを非表示
+            if (listView) {
+                listView.classList.add('hidden');
+                listView.style.display = 'none';
+            }
+            
+            // 地図のサイズを再計算（少し遅延させて確実に）
+            setTimeout(() => {
+                if (typeof inlineMap !== 'undefined' && inlineMap) {
+                    inlineMap.invalidateSize();
+                }
+            }, 100);
+        }
+    }
+}
+
+function closeRegisterModal() {
+    const modal = document.getElementById('registerModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = ''; // 背景のスクロールを有効化
+        // フォームをリセット
+        const form = document.getElementById('registerShopForm');
+        if (form) {
+            form.reset();
+        }
+        // エラーメッセージをクリア
+        const errorDiv = document.getElementById('registerError');
+        if (errorDiv) {
+            errorDiv.classList.add('hidden');
+            errorDiv.textContent = '';
+        }
+        // ステータスメッセージをクリア
+        const statusEl = document.getElementById('locationStatusForRegister');
+        if (statusEl) {
+            statusEl.textContent = '';
+        }
+        // 位置情報をクリア
+        document.getElementById('latitude').value = '';
+        document.getElementById('longitude').value = '';
+        // 送信ボタンを無効化
+        const submitBtn = document.getElementById('submitRegisterBtn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+    }
+}
+
+// ESCキーでモーダルを閉じる
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('registerModal');
+        if (modal && !modal.classList.contains('hidden')) {
+            closeRegisterModal();
+        }
+    }
+});
+
+// 背景クリックでモーダルを閉じる
+document.getElementById('registerModal')?.addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeRegisterModal();
+    }
+});
+
+// 現在位置を取得してフォームに設定
+function getCurrentLocationForRegister() {
+    const statusEl = document.getElementById('locationStatusForRegister');
+    const latitudeInput = document.getElementById('latitude');
+    const longitudeInput = document.getElementById('longitude');
+    const submitBtn = document.getElementById('submitRegisterBtn');
+
+    if (!navigator.geolocation) {
+        if (statusEl) {
+            statusEl.textContent = 'このブラウザは位置情報をサポートしていません';
+            statusEl.className = 'mt-2 text-sm text-red-600';
+        }
+        return;
+    }
+
+    if (statusEl) {
+        statusEl.textContent = '位置情報を取得中...';
+        statusEl.className = 'mt-2 text-sm text-blue-600';
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            if (latitudeInput) latitudeInput.value = lat;
+            if (longitudeInput) longitudeInput.value = lng;
+
+            if (statusEl) {
+                statusEl.textContent = `位置情報を取得しました（緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}）`;
+                statusEl.className = 'mt-2 text-sm text-green-600';
+            }
+
+            // 送信ボタンを有効化
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
+        },
+        function(error) {
+            let message = '位置情報の取得に失敗しました';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    message = '位置情報の使用が拒否されました。ブラウザの設定を確認してください。';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = '位置情報が利用できません';
+                    break;
+                case error.TIMEOUT:
+                    message = '位置情報の取得がタイムアウトしました';
+                    break;
+            }
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = 'mt-2 text-sm text-red-600';
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+// フォーム送信処理（Ajax対応）
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerShopForm');
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('submitRegisterBtn');
+            const errorDiv = document.getElementById('registerError');
+            const statusEl = document.getElementById('locationStatusForRegister');
+            const latitudeInput = document.getElementById('latitude');
+            const longitudeInput = document.getElementById('longitude');
+            const latitude = latitudeInput.value;
+            const longitude = longitudeInput.value;
+
+            // 送信ボタンを無効化
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = '位置情報を取得中...';
+            }
+
+            // エラーメッセージをクリア
+            if (errorDiv) {
+                errorDiv.classList.add('hidden');
+                errorDiv.textContent = '';
+            }
+
+            // 位置情報が取得されているか確認
+            if (!latitude || !longitude) {
+                // 位置情報が取得されていない場合は自動的に取得
+                if (statusEl) {
+                    statusEl.textContent = '位置情報を取得中...';
+                    statusEl.className = 'mt-2 text-sm text-blue-600';
+                }
+
+                if (!navigator.geolocation) {
+                    if (errorDiv) {
+                        errorDiv.textContent = 'このブラウザは位置情報をサポートしていません';
+                        errorDiv.classList.remove('hidden');
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '登録する';
+                    }
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+
+                        latitudeInput.value = lat;
+                        longitudeInput.value = lng;
+
+                        if (statusEl) {
+                            statusEl.textContent = `位置情報を取得しました（緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}）`;
+                            statusEl.className = 'mt-2 text-sm text-green-600';
+                        }
+
+                        // 位置情報を取得したらフォームを送信
+                        submitForm();
+                    },
+                    function(error) {
+                        let message = '位置情報の取得に失敗しました';
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                message = '位置情報の使用が拒否されました。ブラウザの設定を確認してください。';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                message = '位置情報が利用できません';
+                                break;
+                            case error.TIMEOUT:
+                                message = '位置情報の取得がタイムアウトしました';
+                                break;
+                        }
+                        if (statusEl) {
+                            statusEl.textContent = message;
+                            statusEl.className = 'mt-2 text-sm text-red-600';
+                        }
+                        if (errorDiv) {
+                            errorDiv.textContent = message;
+                            errorDiv.classList.remove('hidden');
+                        }
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '登録する';
+                        }
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                // 位置情報が既に取得されている場合はそのまま送信
+                submitForm();
+            }
+
+            // フォーム送信関数
+            function submitForm() {
+                if (submitBtn) {
+                    submitBtn.textContent = '登録中...';
+                }
+
+                // FormDataを作成
+                const formData = new FormData(form);
+
+                // Ajaxで送信
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                })
+                .then(response => {
+                    // レスポンスがJSONかどうかを確認
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        // JSONでない場合（HTMLエラーページなど）はテキストとして読み込む
+                        return response.text().then(text => {
+                            throw new Error('サーバーエラーが発生しました');
+                        });
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        // 成功メッセージを表示
+                        alert('店舗を登録しました！');
+                        // モーダルを閉じる
+                        closeRegisterModal();
+                        // 現在位置を取得して地図をリフレッシュ
+                        refreshMapWithCurrentLocation();
+                    } else {
+                        // エラーメッセージを表示
+                        if (errorDiv) {
+                            errorDiv.textContent = data.message || '登録に失敗しました';
+                            errorDiv.classList.remove('hidden');
+                        }
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = '登録する';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (errorDiv) {
+                        errorDiv.textContent = error.message || '登録中にエラーが発生しました。データベースエラーの可能性があります。';
+                        errorDiv.classList.remove('hidden');
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '登録する';
+                    }
+                });
+            }
+        });
+    }
+});
+</script>
 @endsection
 

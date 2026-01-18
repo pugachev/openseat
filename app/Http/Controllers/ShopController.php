@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Shop;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class ShopController extends Controller
 {
@@ -83,7 +85,49 @@ class ShopController extends Controller
             ->sortBy('distance')
             ->values();
 
-        return response()->json($shops);
+        // category, updated_at, secret_keyも含めて返す
+        return response()->json($shops->map(function ($shop) {
+            $shop->category = $shop->category;
+            $shop->updated_at = $shop->updated_at ? $shop->updated_at->toDateTimeString() : null;
+            $shop->secret_key = $shop->secret_key;
+            return $shop;
+        }));
+    }
+
+    /**
+     * 店舗ステータス更新API（secret_key経由）
+     */
+    public function updateStatus(Request $request, $secret_key)
+    {
+        $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
+        
+        $request->validate([
+            'status' => 'required|integer|in:0,1,2',
+        ]);
+        
+        $shop->status = $request->status;
+        $shop->save();
+        
+        if ($request->expectsJson()) {
+            $updatedShop = $shop->fresh();
+            return response()->json([
+                'success' => true,
+                'message' => 'ステータスを更新しました',
+                'shop' => [
+                    'id' => $updatedShop->id,
+                    'name' => $updatedShop->name,
+                    'category' => $updatedShop->category,
+                    'status' => $updatedShop->status,
+                    'status_label' => $updatedShop->status_label,
+                    'updated_at' => $updatedShop->updated_at ? $updatedShop->updated_at->toDateTimeString() : null,
+                    'secret_key' => $updatedShop->secret_key,
+                ],
+            ]);
+        }
+        
+        return redirect()
+            ->route('shops.edit', ['secret_key' => $secret_key])
+            ->with('success', 'ステータスを更新しました');
     }
 
     /**
@@ -104,5 +148,94 @@ class ShopController extends Controller
         $distance = $earthRadius * $c;
 
         return $distance;
+    }
+
+    /**
+     * 匿名店舗登録フォーム表示（モーダル用）
+     */
+    public function createGuest()
+    {
+        // モーダルはフロントエンドで表示するため、特にデータは不要
+        // 必要に応じて業種のリストなどを返すことも可能
+        return response()->json([
+            'categories' => [
+                'ヘアーサロン',
+                '飲食',
+                'ボディケア',
+            ],
+        ]);
+    }
+
+    /**
+     * 匿名店舗登録処理
+     */
+    public function storeGuest(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'category' => 'required|string|in:ヘアーサロン,飲食,ボディケア',
+                'name' => 'nullable|string|max:255',
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+            ]);
+
+            // secret_keyを自動生成
+            $validated['secret_key'] = Str::random(32);
+            $validated['status'] = Shop::STATUS_AVAILABLE;
+            $validated['user_id'] = null; // 匿名登録
+            $validated['phone'] = ''; // 空文字列
+            $validated['address'] = ''; // 空文字列
+
+            $shop = Shop::create($validated);
+
+            // JSONレスポンスを返す（Ajax対応）
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => '店舗を登録しました',
+                    'shop' => $shop,
+                ]);
+            }
+
+            // 通常のフォーム送信の場合
+            return redirect()
+                ->route('shops.index')
+                ->with('success', '店舗を登録しました');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // バリデーションエラーの場合
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '入力内容に誤りがあります',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            throw $e;
+        } catch (\Exception $e) {
+            // データベースエラーなどの例外をキャッチ
+            \Log::error('Shop registration error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->all(),
+            ]);
+
+            if ($request->expectsJson()) {
+                $message = '店舗の登録に失敗しました';
+                // データベースエラーの場合、より具体的なメッセージを返す
+                if (str_contains($e->getMessage(), 'category')) {
+                    $message = 'データベースにカラムが存在しません。マイグレーションを実行してください: php artisan migrate';
+                }
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', '店舗の登録に失敗しました');
+        }
     }
 }
