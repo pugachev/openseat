@@ -99,35 +99,147 @@ class ShopController extends Controller
      */
     public function updateStatus(Request $request, $secret_key)
     {
-        $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
-        
-        $request->validate([
-            'status' => 'required|integer|in:0,1,2',
-        ]);
-        
-        $shop->status = $request->status;
-        $shop->save();
-        
-        if ($request->expectsJson()) {
-            $updatedShop = $shop->fresh();
-            return response()->json([
-                'success' => true,
-                'message' => 'ステータスを更新しました',
-                'shop' => [
-                    'id' => $updatedShop->id,
-                    'name' => $updatedShop->name,
-                    'category' => $updatedShop->category,
-                    'status' => $updatedShop->status,
-                    'status_label' => $updatedShop->status_label,
-                    'updated_at' => $updatedShop->updated_at ? $updatedShop->updated_at->toDateTimeString() : null,
-                    'secret_key' => $updatedShop->secret_key,
-                ],
+        try {
+            $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
+            
+            $request->validate([
+                'status' => 'required|integer|in:0,1,2',
             ]);
+            
+            $shop->status = $request->status;
+            $shop->save();
+            
+            if ($request->expectsJson()) {
+                $updatedShop = $shop->fresh();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'ステータスを更新しました',
+                    'shop' => [
+                        'id' => $updatedShop->id,
+                        'name' => $updatedShop->name,
+                        'category' => $updatedShop->category,
+                        'status' => $updatedShop->status,
+                        'status_label' => $updatedShop->status_label,
+                        'updated_at' => $updatedShop->updated_at ? $updatedShop->updated_at->toDateTimeString() : null,
+                        'secret_key' => $updatedShop->secret_key,
+                    ],
+                ]);
+            }
+            
+            return redirect()
+                ->route('shops.edit', ['secret_key' => $secret_key])
+                ->with('success', 'ステータスを更新しました');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '入力内容に誤りがあります',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '店舗が見つかりません',
+                ], 404);
+            }
+            abort(404);
+        } catch (\Exception $e) {
+            \Log::error('Shop status update error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'secret_key' => $secret_key,
+                'request' => $request->all(),
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ステータスの更新に失敗しました: ' . $e->getMessage(),
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'ステータスの更新に失敗しました');
         }
-        
-        return redirect()
-            ->route('shops.edit', ['secret_key' => $secret_key])
-            ->with('success', 'ステータスを更新しました');
+    }
+
+    /**
+     * 店舗名更新API（secret_key経由）
+     */
+    public function updateName(Request $request, $secret_key)
+    {
+        try {
+            $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
+            
+            $request->validate([
+                'name' => 'nullable|string|max:255',
+            ]);
+            
+            $shop->name = $request->name;
+            $shop->save();
+            
+            if ($request->expectsJson()) {
+                $updatedShop = $shop->fresh();
+                return response()->json([
+                    'success' => true,
+                    'message' => '店舗名を更新しました',
+                    'shop' => [
+                        'id' => $updatedShop->id,
+                        'name' => $updatedShop->name,
+                        'category' => $updatedShop->category,
+                        'status' => $updatedShop->status,
+                        'status_label' => $updatedShop->status_label,
+                        'updated_at' => $updatedShop->updated_at ? $updatedShop->updated_at->toDateTimeString() : null,
+                        'secret_key' => $updatedShop->secret_key,
+                    ],
+                ]);
+            }
+            
+            return redirect()
+                ->route('shops.edit', ['secret_key' => $secret_key])
+                ->with('success', '店舗名を更新しました');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '入力内容に誤りがあります',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '店舗が見つかりません',
+                ], 404);
+            }
+            abort(404);
+        } catch (\Exception $e) {
+            \Log::error('Shop name update error: ' . $e->getMessage(), [
+                'exception' => $e,
+                'secret_key' => $secret_key,
+                'request' => $request->all(),
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '店舗名の更新に失敗しました: ' . $e->getMessage(),
+                    'error' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', '店舗名の更新に失敗しました');
+        }
     }
 
     /**

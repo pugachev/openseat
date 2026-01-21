@@ -30,8 +30,8 @@
         🏪 店舗を登録
     </button>
 </div>
-<p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
-<p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
+    <p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
+    <p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
 
 <script>
 // インラインで位置情報更新を処理（JavaScriptが読み込まれていない場合のフォールバック）
@@ -182,6 +182,7 @@ function handleLocationUpdate(event) {
 // 地図を初期化（インライン版）
 let inlineMap = null;
 let inlineMarkers = [];
+let currentOpenMarker = null; // 現在開いているマーカーを追跡
 
 function initMapInline(lat, lng) {
     // console.log('initMapInline呼び出し: lat=' + lat + ', lng=' + lng);
@@ -350,54 +351,68 @@ function updateShopList(shops) {
 
         const shopCard = document.createElement('div');
         shopCard.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow';
+        // secret_key属性を追加（ステータス更新時に検索用）
+        if (shop.secret_key) {
+            shopCard.setAttribute('data-secret-key', shop.secret_key);
+        }
         shopCard.innerHTML = `
             <div class="p-6">
-                <div class="flex items-start justify-between mb-4">
-                    <h3 class="text-xl font-semibold text-gray-900">${shop.name}</h3>
-                    <span class="px-3 py-1 rounded-full text-sm font-medium ${statusClass}">
-                        ${statusLabel}
-                    </span>
+                <div class="space-y-3">
+                    <!-- 店舗名 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">店舗名</label>
+                        <p class="text-lg font-semibold text-gray-900">${shop.name || '店舗名未設定'}</p>
                 </div>
 
-                <div class="space-y-2 mb-4">
-                    <p class="text-gray-600 text-sm">
-                        <span class="font-medium">住所:</span> ${shop.address || ''}
-                    </p>
-                    <p class="text-gray-600 text-sm">
-                        <span class="font-medium">電話:</span> ${shop.phone || ''}
-                    </p>
-                    ${shop.distance ? `<p class="text-gray-600 text-sm"><span class="font-medium">距離:</span> ${shop.distance}km</p>` : ''}
+                    <!-- 業種 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">業種</label>
+                        <p class="text-base text-gray-900">${shop.category || 'N/A'}</p>
                 </div>
 
-                <a href="tel:${shop.phone || ''}"
-                   class="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    <span class="mr-2">📞</span>
-                    電話する
-                </a>
+                    <!-- ステータス -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
+                        <span class="shop-status-badge inline-block px-3 py-1 rounded-full text-sm font-medium ${statusClass}" data-status="${shop.status}">
+                            ${statusLabel}
+                        </span>
+                    </div>
+                </div>
             </div>
         `;
         container.appendChild(shopCard);
     });
 }
 
-function displayShopsOnMap(shops, userLat, userLng) {
-    if (!inlineMap) {
-        console.error('地図が初期化されていません');
-        return;
+// リスト表示のステータスを更新する関数（DOM操作のみ、Ajax不要）
+function updateShopListStatus(secretKey, newStatus) {
+    if (!secretKey) return;
+    
+    // secret_keyで該当する店舗カードを検索
+    const container = document.getElementById('shopListContainer');
+    if (!container) return;
+    
+    const shopCard = container.querySelector(`[data-secret-key="${secretKey}"]`);
+    if (!shopCard) return;
+    
+    // ステータスラベルとクラスを更新
+    const statusLabel = newStatus === 0 ? '空き' : newStatus === 1 ? '待ち' : '満席';
+    const statusClass = newStatus === 0 
+        ? 'bg-green-100 text-green-800' 
+        : newStatus === 1 
+        ? 'bg-yellow-100 text-yellow-800' 
+        : 'bg-red-100 text-red-800';
+    
+    // ステータスバッジを更新
+    const statusBadge = shopCard.querySelector('.shop-status-badge');
+    if (statusBadge) {
+        statusBadge.textContent = statusLabel;
+        statusBadge.className = `shop-status-badge inline-block px-3 py-1 rounded-full text-sm font-medium ${statusClass}`;
+        statusBadge.setAttribute('data-status', newStatus);
     }
+}
 
-    // 既存のマーカーを削除
-    inlineMarkers.forEach(marker => inlineMap.removeLayer(marker));
-    inlineMarkers = [];
-
-    if (shops.length === 0) {
-        alert('近くに店舗が見つかりませんでした');
-        // リスト表示も更新
-        updateShopList([]);
-        return;
-    }
-
-    // カスタムアイコンの作成
+// カスタムアイコンの作成（グローバル関数として定義）
     function createCustomIcon(status) {
         const colors = {
             0: '#22c55e', // 緑（空き）
@@ -421,6 +436,23 @@ function displayShopsOnMap(shops, userLat, userLng) {
             iconSize: [30, 30],
             iconAnchor: [15, 30],
         });
+}
+
+function displayShopsOnMap(shops, userLat, userLng) {
+    if (!inlineMap) {
+        console.error('地図が初期化されていません');
+        return;
+    }
+
+    // 既存のマーカーを削除
+    inlineMarkers.forEach(marker => inlineMap.removeLayer(marker));
+    inlineMarkers = [];
+
+    if (shops.length === 0) {
+        alert('近くに店舗が見つかりませんでした');
+        // リスト表示も更新
+        updateShopList([]);
+        return;
     }
 
     // 店舗をマーカーで表示
@@ -443,17 +475,85 @@ function displayShopsOnMap(shops, userLat, userLng) {
             statusLabel = statusLabels[shop.status] || '不明';
         }
 
-        marker.bindPopup(`
-            <div class="text-center">
+        // ポップアップの内容を作成（クリック可能にする）
+        const popupContent = `
+            <div class="text-center cursor-pointer" style="min-width: 120px;">
                 <strong>${shop.name || '店舗名未設定'}</strong><br>
                 ${shop.category ? `<span class="text-xs">${shop.category}</span><br>` : ''}
-                <span class="text-sm">${statusLabel}</span>
+                <span class="text-sm">${statusLabel}</span><br>
+                <span class="text-xs text-blue-600 mt-1 block">タップして詳細を表示</span>
             </div>
-        `);
+        `;
+        
+        marker.bindPopup(popupContent);
 
-        // クリックイベント
-        marker.on('click', () => {
+        // マーカークリック時はポップアップのみ表示（モーダルは表示しない）
+        marker.on('click', (e) => {
+            if (e.originalEvent) {
+                e.originalEvent.stopPropagation();
+            }
+            currentOpenMarker = marker; // 現在開いているマーカーを保存
+            marker.openPopup(); // ポップアップのみ開く
+        });
+
+        // ポップアップが開いた後にクリックイベントを追加
+        marker.on('popupopen', () => {
+            // 少し遅延させてからイベントリスナーを追加（DOMが確実に更新されるまで待つ）
+            setTimeout(() => {
+                const popup = marker.getPopup();
+                if (popup) {
+                    const popupElement = popup.getElement();
+                    if (popupElement) {
+                        // ポップアップの閉じるボタン（×）のイベントを制御
+                        const closeButton = popupElement.querySelector('.leaflet-popup-close-button');
+                        if (closeButton) {
+                            // 閉じるボタンのクリックイベントを上書き
+                            closeButton.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                // 閉じるボタンはポップアップを閉じるだけ（モーダルは開かない）
+                                marker.closePopup();
+                                currentOpenMarker = null; // マーカーをクリア
+                            });
+                        }
+                        
+                        // ポップアップのコンテンツ部分をクリック可能にする
+                        const popupContent = popupElement.querySelector('.leaflet-popup-content');
+                        if (popupContent) {
+                            popupContent.style.cursor = 'pointer';
+                            
+                            // ポップアップコンテンツのクリックイベント
+                            const handleContentClick = (e) => {
+                                // 閉じるボタンがクリックされた場合は何もしない
+                                if (e.target.closest('.leaflet-popup-close-button')) {
+                                    return;
+                                }
+                                e.stopPropagation();
+                                e.preventDefault();
+                                currentOpenMarker = marker; // 現在開いているマーカーを保存
+                                // ポップアップを閉じてからモーダルを開く
+                                marker.closePopup();
             showShopDialogInline(shop);
+                            };
+                            
+                            // 既存のイベントリスナーを削除してから追加（重複防止）
+                            popupContent.removeEventListener('click', handleContentClick);
+                            popupContent.addEventListener('click', handleContentClick);
+                        }
+                    }
+                }
+            }, 100);
+        });
+        
+        // ポップアップが閉じた時にマーカーをクリア
+        marker.on('popupclose', () => {
+            if (currentOpenMarker === marker) {
+                // モーダルが開いていない場合のみクリア
+                const dialog = document.getElementById('shopDialog');
+                if (dialog && dialog.classList.contains('hidden')) {
+                    currentOpenMarker = null;
+                }
+            }
         });
 
         inlineMarkers.push(marker);
@@ -476,14 +576,25 @@ function showShopDialogInline(shop) {
     const dialog = document.getElementById('shopDialog');
     const nameEl = document.getElementById('dialogShopName');
     const contentEl = document.getElementById('dialogShopContent');
-    const phoneEl = document.getElementById('dialogShopPhone');
 
-    if (!dialog || !nameEl || !contentEl || !phoneEl) {
+    if (!dialog || !nameEl || !contentEl) {
         console.error('ダイアログ要素が見つかりません');
         return;
     }
 
-    nameEl.textContent = shop.name || '店舗名未設定';
+    // 店舗名を編集可能な入力フィールドに変更
+    const escapedName = (shop.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    nameEl.innerHTML = `
+        <label for="dialogShopNameInput" class="block text-sm font-medium text-gray-700 mb-2">
+            店舗名（任意）
+        </label>
+        <input type="text" 
+               id="dialogShopNameInput" 
+               value="${escapedName}" 
+               placeholder="店舗名（任意）"
+               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold"
+               data-secret-key="${shop.secret_key}">
+    `;
 
     // 更新日時をフォーマット
     let updateTime = '';
@@ -538,15 +649,6 @@ function showShopDialogInline(shop) {
         </div>
     `;
 
-    phoneEl.href = shop.phone ? `tel:${shop.phone}` : '#';
-    if (!shop.phone) {
-        phoneEl.classList.add('disabled', 'opacity-50', 'cursor-not-allowed');
-        phoneEl.onclick = (e) => e.preventDefault();
-    } else {
-        phoneEl.classList.remove('disabled', 'opacity-50', 'cursor-not-allowed');
-        phoneEl.onclick = null;
-    }
-
     // ステータス変更イベントリスナーを追加
     const statusSelect = document.getElementById('dialogStatusSelect');
     if (statusSelect) {
@@ -555,7 +657,37 @@ function showShopDialogInline(shop) {
         });
     }
 
+    // 店舗名変更イベントリスナーを追加（入力が終わった時、Enterキー、またはフォーカスアウト時）
+    const nameInput = document.getElementById('dialogShopNameInput');
+    if (nameInput) {
+        let nameUpdateTimeout = null;
+        const handleNameUpdate = () => {
+            const newName = nameInput.value.trim();
+            const secretKey = nameInput.dataset.secretKey;
+            if (secretKey) {
+                updateShopName(newName, secretKey);
+            }
+        };
+        
+        nameInput.addEventListener('blur', handleNameUpdate);
+        nameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                nameInput.blur(); // フォーカスを外してblurイベントを発火
+            }
+        });
+    }
+
     dialog.classList.remove('hidden');
+    
+    // モーダルを開いた時にポップアップを閉じる
+    if (currentOpenMarker) {
+        try {
+            currentOpenMarker.closePopup();
+        } catch (e) {
+            console.warn('ポップアップを閉じる際にエラーが発生しました:', e);
+        }
+    }
 }
 
 // 店舗ステータス更新関数
@@ -567,16 +699,37 @@ function updateShopStatus(status, secretKey) {
     const originalValue = statusSelect.dataset.originalValue || status;
     statusSelect.disabled = true;
 
+    // CSRFトークンを取得
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!csrfToken) {
+        console.error('CSRFトークンが見つかりません');
+        alert('CSRFトークンが見つかりません。ページをリロードしてください。');
+        statusSelect.disabled = false;
+        return;
+    }
+
     fetch(`/api/shops/${secretKey}/status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken,
             'Accept': 'application/json',
         },
         body: JSON.stringify({ status: parseInt(status) }),
     })
-    .then(response => response.json())
+    .then(response => {
+        // レスポンスがJSONかどうかを確認
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // JSONでない場合（HTMLエラーページなど）はテキストとして読み込む
+            return response.text().then(text => {
+                throw new Error('サーバーエラーが発生しました: ' + response.status);
+            });
+        }
+    })
     .then(data => {
         if (data.success) {
             // 更新日時を更新
@@ -610,21 +763,128 @@ function updateShopStatus(status, secretKey) {
                     }
                 });
             }
+            
+            // リスト表示のステータスも更新（DOM操作のみ、Ajax不要）
+            updateShopListStatus(secretKey, parseInt(status));
         } else {
-            alert('ステータスの更新に失敗しました');
+            const errorMessage = data.message || 'ステータスの更新に失敗しました';
+            console.error('更新失敗:', data);
+            alert(errorMessage);
             statusSelect.value = originalValue;
             statusSelect.disabled = false;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('ステータスの更新中にエラーが発生しました');
+        const errorMessage = error.message || 'ステータスの更新中にエラーが発生しました';
+        alert(errorMessage);
         statusSelect.value = originalValue;
         statusSelect.disabled = false;
     });
 }
 
-// 現在位置を取得して地図をリフレッシュする関数
+// 店舗名更新関数
+function updateShopName(name, secretKey) {
+    const nameInput = document.getElementById('dialogShopNameInput');
+    if (!nameInput || !secretKey) return;
+
+    const originalValue = nameInput.value;
+    nameInput.disabled = true;
+
+    // CSRFトークンを取得
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!csrfToken) {
+        console.error('CSRFトークンが見つかりません');
+        nameInput.disabled = false;
+        return;
+    }
+
+    fetch(`/api/shops/${secretKey}/name`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ name: name }),
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            return response.text().then(text => {
+                throw new Error('サーバーエラーが発生しました: ' + response.status);
+            });
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // 更新日時を更新
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const updateTimeText = `${year}/${month}/${day} ${hours}:${minutes}に更新`;
+            
+            // 更新日時を表示
+            const contentEl = document.getElementById('dialogShopContent');
+            if (contentEl) {
+                let updateTimeEl = contentEl.querySelector('.text-xs.text-gray-500');
+                if (!updateTimeEl) {
+                    updateTimeEl = document.createElement('p');
+                    updateTimeEl.className = 'text-xs text-gray-500 mt-2';
+                    contentEl.appendChild(updateTimeEl);
+                }
+                updateTimeEl.textContent = updateTimeText;
+            }
+            
+            nameInput.disabled = false;
+            
+            // 地図上のマーカーも更新（必要に応じて）
+            if (typeof inlineMarkers !== 'undefined' && inlineMarkers) {
+                inlineMarkers.forEach(marker => {
+                    const markerShop = marker.shopData;
+                    if (markerShop && markerShop.secret_key === secretKey) {
+                        markerShop.name = name;
+                        // ポップアップを更新
+        const statusLabels = {
+            0: '空き',
+            1: '待ち',
+            2: '満席'
+        };
+                        const statusLabel = statusLabels[markerShop.status] || '不明';
+                        marker.setPopupContent(`
+                            <div class="text-center">
+                                <strong>${name || '店舗名未設定'}</strong><br>
+                                ${markerShop.category ? `<span class="text-xs">${markerShop.category}</span><br>` : ''}
+                                <span class="text-sm">${statusLabel}</span>
+                            </div>
+                        `);
+                    }
+                });
+            }
+        } else {
+            const errorMessage = data.message || '店舗名の更新に失敗しました';
+            console.error('更新失敗:', data);
+            alert(errorMessage);
+            nameInput.value = originalValue;
+            nameInput.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const errorMessage = error.message || '店舗名の更新中にエラーが発生しました';
+        alert(errorMessage);
+        nameInput.value = originalValue;
+        nameInput.disabled = false;
+    });
+}
+
+// 現在位置を取得して地図をリフレッシュする関数（店舗登録後用：現在地マーカーは表示しない）
 function refreshMapWithCurrentLocation() {
     if (!navigator.geolocation) {
         console.warn('このブラウザは位置情報をサポートしていません');
@@ -645,15 +905,7 @@ function refreshMapWithCurrentLocation() {
                 inlineMarkers.forEach(marker => inlineMap.removeLayer(marker));
                 inlineMarkers = [];
                 
-                // 現在地マーカーを追加
-                const userMarker = L.marker([lat, lng], {
-                    icon: L.icon({
-                        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                    }),
-                }).addTo(inlineMap);
-                userMarker.bindPopup('現在地').openPopup();
+                // 現在地マーカーは追加しない（店舗のピンのみ表示）
             } else {
                 // 地図が初期化されていない場合は初期化
                 initMapInline(lat, lng).catch(error => {
@@ -800,17 +1052,75 @@ function initializeInline() {
     }
 }
 
+// モーダルを閉じる共通関数
+function closeShopDialog() {
+    const dialog = document.getElementById('shopDialog');
+    if (dialog) {
+        dialog.classList.add('hidden');
+    }
+    // ポップアップも確実に閉じる
+    if (currentOpenMarker) {
+        // 複数の方法でポップアップを閉じる試み
+        try {
+            // 方法1: closePopup()を直接呼ぶ
+            if (currentOpenMarker.isPopupOpen && currentOpenMarker.isPopupOpen()) {
+                currentOpenMarker.closePopup();
+            } else {
+                currentOpenMarker.closePopup();
+            }
+        } catch (e) {
+            console.warn('closePopup()でエラー:', e);
+        }
+        
+        try {
+            // 方法2: 地図からポップアップを閉じる
+            if (inlineMap) {
+                inlineMap.closePopup();
+            }
+        } catch (e) {
+            console.warn('map.closePopup()でエラー:', e);
+        }
+        
+        // 少し遅延させて再度確認（確実に閉じるため）
+    setTimeout(() => {
+            if (currentOpenMarker) {
+                try {
+                    if (currentOpenMarker.isPopupOpen && currentOpenMarker.isPopupOpen()) {
+                        currentOpenMarker.closePopup();
+                    }
+                } catch (e) {
+                    // エラーは無視
+                }
+            }
+        }, 50);
+        
+        currentOpenMarker = null;
+    }
+}
+
 // ダイアログの初期化（閉じるボタンのイベント設定など）
 function setupDialogInline() {
     const dialog = document.getElementById('shopDialog');
     const closeBtn = document.getElementById('closeDialogBtn');
     if (!dialog || !closeBtn) return;
+    
     closeBtn.addEventListener('click', () => {
-        dialog.classList.add('hidden');
+        closeShopDialog();
     });
+    
     dialog.addEventListener('click', (e) => {
         if (e.target === dialog) {
-            dialog.classList.add('hidden');
+            closeShopDialog();
+        }
+    });
+    
+    // ESCキーでモーダルを閉じる
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const dialog = document.getElementById('shopDialog');
+            if (dialog && !dialog.classList.contains('hidden')) {
+                closeShopDialog();
+            }
         }
     });
 }
@@ -876,7 +1186,9 @@ if (document.readyState === 'loading') {
 <div id="shopDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 9999;">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" style="z-index: 10000;">
         <div class="flex justify-between items-start mb-4">
-            <h3 id="dialogShopName" class="text-2xl font-semibold text-gray-900"></h3>
+            <div id="dialogShopName" class="flex-1 mr-4">
+                <!-- 店舗名がここに動的に挿入されます -->
+            </div>
             <button id="closeDialogBtn" class="text-gray-400 hover:text-gray-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -886,15 +1198,8 @@ if (document.readyState === 'loading') {
         <div id="dialogShopContent" class="space-y-3">
             <!-- 店舗情報がここに動的に挿入されます -->
         </div>
-        <div class="mt-6">
-            <a id="dialogShopPhone" href="#"
-               class="inline-flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <span class="mr-2">📞</span>
-                電話する
-            </a>
         </div>
     </div>
-</div>
 
 <!-- 店舗登録モーダル -->
 <div id="registerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="z-index: 9999;">
@@ -909,7 +1214,7 @@ if (document.readyState === 'loading') {
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
-        </div>
+</div>
 
         <!-- フォーム本体 -->
         <form id="registerShopForm" action="{{ route('shops.register.store') }}" method="POST" class="p-6 space-y-4">
@@ -954,16 +1259,10 @@ if (document.readyState === 'loading') {
             <input type="hidden" id="latitude" name="latitude" value="">
             <input type="hidden" id="longitude" name="longitude" value="">
 
-            <!-- 位置情報取得ボタン -->
+            <!-- 位置情報表示エリア -->
             <div>
-                <button type="button" 
-                        id="getLocationBtn"
-                        onclick="getCurrentLocationForRegister(); return false;"
-                        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                    📍 現在位置を取得
-                </button>
                 <p id="locationStatusForRegister" class="mt-2 text-sm text-gray-600"></p>
-                <p class="mt-2 text-xs text-gray-500">※「登録する」ボタンを押すと自動的に現在位置を取得します</p>
+                <p class="mt-2 text-xs text-gray-500">※「登録する」ボタンを押すと自動的に現在位置を取得して登録します</p>
             </div>
 
             <!-- エラーメッセージ表示エリア -->
@@ -1078,69 +1377,6 @@ document.getElementById('registerModal')?.addEventListener('click', function(eve
     }
 });
 
-// 現在位置を取得してフォームに設定
-function getCurrentLocationForRegister() {
-    const statusEl = document.getElementById('locationStatusForRegister');
-    const latitudeInput = document.getElementById('latitude');
-    const longitudeInput = document.getElementById('longitude');
-    const submitBtn = document.getElementById('submitRegisterBtn');
-
-    if (!navigator.geolocation) {
-        if (statusEl) {
-            statusEl.textContent = 'このブラウザは位置情報をサポートしていません';
-            statusEl.className = 'mt-2 text-sm text-red-600';
-        }
-        return;
-    }
-
-    if (statusEl) {
-        statusEl.textContent = '位置情報を取得中...';
-        statusEl.className = 'mt-2 text-sm text-blue-600';
-    }
-
-    navigator.geolocation.getCurrentPosition(
-        function(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-
-            if (latitudeInput) latitudeInput.value = lat;
-            if (longitudeInput) longitudeInput.value = lng;
-
-            if (statusEl) {
-                statusEl.textContent = `位置情報を取得しました（緯度: ${lat.toFixed(6)}, 経度: ${lng.toFixed(6)}）`;
-                statusEl.className = 'mt-2 text-sm text-green-600';
-            }
-
-            // 送信ボタンを有効化
-            if (submitBtn) {
-                submitBtn.disabled = false;
-            }
-        },
-        function(error) {
-            let message = '位置情報の取得に失敗しました';
-            switch (error.code) {
-                case error.PERMISSION_DENIED:
-                    message = '位置情報の使用が拒否されました。ブラウザの設定を確認してください。';
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    message = '位置情報が利用できません';
-                    break;
-                case error.TIMEOUT:
-                    message = '位置情報の取得がタイムアウトしました';
-                    break;
-            }
-            if (statusEl) {
-                statusEl.textContent = message;
-                statusEl.className = 'mt-2 text-sm text-red-600';
-            }
-        },
-        {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        }
-    );
-}
 
 // フォーム送信処理（Ajax対応）
 document.addEventListener('DOMContentLoaded', function() {
@@ -1248,6 +1484,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.textContent = '登録中...';
                 }
 
+                // CSRFトークンを取得
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                
                 // FormDataを作成
                 const formData = new FormData(form);
 
@@ -1258,6 +1497,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken || '',
                     },
                 })
                 .then(response => {

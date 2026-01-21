@@ -12,6 +12,7 @@ Route::get('/api/shops/nearby', [ShopController::class, 'nearby'])->name('shops.
 Route::get('/shop/control/{secret_key}', [ShopController::class, 'edit'])->name('shops.edit');
 Route::post('/shop/control/{secret_key}/update', [ShopController::class, 'update'])->name('shops.update');
 Route::post('/api/shops/{secret_key}/status', [ShopController::class, 'updateStatus'])->name('shops.status.update');
+Route::post('/api/shops/{secret_key}/name', [ShopController::class, 'updateName'])->name('shops.name.update');
 
 // 匿名店舗登録ルート（認証不要）
 Route::get('/shop/register', [ShopController::class, 'createGuest'])->name('shops.register');
