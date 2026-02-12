@@ -24,11 +24,16 @@
             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md cursor-pointer">
         📍 位置情報を更新
     </button>
-    <button id="openRegisterModalBtn"
+    <button id="openPinModalBtn"
+            onclick="openPinModal(); return false;"
+            class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-md cursor-pointer">
+        📌 地図掲示板に投稿
+    </button>
+    <!-- <button id="openRegisterModalBtn"
             onclick="openRegisterModal(); return false;"
             class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-md cursor-pointer">
         🏪 店舗を登録
-    </button>
+    </button> -->
 </div>
     <p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
     <p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
@@ -303,6 +308,11 @@ function createMap(lat, lng) {
         }).addTo(inlineMap);
         userMarker.bindPopup('現在地').openPopup();
         // console.log('現在地マーカーを追加しました');
+
+        // 既存のピン（地図掲示板投稿）があれば再描画
+        if (window.pinBoard && typeof window.pinBoard.renderPins === 'function') {
+            window.pinBoard.renderPins();
+        }
 
         // 地図のサイズを再計算（少し遅延させて確実に）
         setTimeout(() => {
@@ -1156,6 +1166,13 @@ if (document.readyState === 'loading') {
 .tab-content.hidden {
     display: none !important;
 }
+[x-cloak] {
+    display: none !important;
+}
+/* Leafletがモーダルより前面に出ないように調整 */
+.leaflet-container {
+    z-index: 0 !important;
+}
 </style>
 <div class="mb-6 border-b border-gray-200">
     <nav class="flex space-x-8">
@@ -1200,6 +1217,156 @@ if (document.readyState === 'loading') {
         </div>
         </div>
     </div>
+
+<!-- 地図掲示板投稿モーダル -->
+<div x-data="pinPostModal()" x-init="register()" x-show="open" x-cloak
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[20000]"
+    @click.self="close()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+        <div class="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
+            <div>
+                <p class="text-sm text-amber-600 font-semibold">地図掲示板</p>
+                <h3 class="text-2xl font-bold text-gray-900" x-text="view === 'menu' ? '今の状況をシェア' : (currentType.emoji + ' ' + currentType.label)"></h3>
+            </div>
+            <div class="flex items-center gap-2">
+                <button x-show="view === 'form'" @click="backToMenu" class="text-gray-500 hover:text-gray-700 text-sm font-semibold">一覧に戻る</button>
+                <button @click="close()" class="text-gray-400 hover:text-gray-600">
+                    <span class="sr-only">閉じる</span>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="px-4 sm:px-6 py-5 max-h-[85vh] overflow-y-auto">
+            <!-- メニュー：4ボタン縦並び -->
+            <div x-show="view === 'menu'" class="space-y-3" x-cloak>
+                <template x-for="item in types" :key="item.id">
+                    <button type="button"
+                            @click="openType(item.id)"
+                            class="w-full text-left flex items-center justify-between px-4 py-4 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="text-2xl" x-text="item.emoji"></div>
+                            <div>
+                                <p class="text-base font-semibold text-gray-900" x-text="item.label"></p>
+                                <p class="text-xs text-gray-500" x-text="item.hint"></p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </template>
+            </div>
+
+            <!-- hidden location -->
+            <template x-if="view === 'form'">
+                <div class="space-y-5" x-cloak>
+                    <input type="hidden" name="pin_latitude" x-model="form.latitude">
+                    <input type="hidden" name="pin_longitude" x-model="form.longitude">
+
+                    <!-- 待ち合わせ / 今の風景 -->
+                    <div x-show="[1,3].includes(activeType)" class="space-y-4" x-cloak>
+                        <div class="relative border-2 border-dashed border-gray-200 rounded-xl h-56 flex items-center justify-center bg-gray-50 cursor-pointer hover:border-amber-300 transition-colors"
+                             @click="$refs.pinFileInput.click()">
+                            <template x-if="form.imagePreview">
+                                <div class="relative w-full h-full">
+                                    <img :src="form.imagePreview" alt="preview" class="w-full h-full object-cover rounded-xl">
+                                    <button type="button" @click.stop="clearImage"
+                                            class="absolute top-3 right-3 bg-black/60 text-white rounded-full p-2 shadow">✕</button>
+                                </div>
+                            </template>
+                            <template x-if="!form.imagePreview">
+                                <div class="text-center text-gray-500">
+                                    <div class="text-3xl mb-2">📷</div>
+                                    <p class="font-medium">タップして写真を追加</p>
+                                    <p class="text-xs text-gray-400">カメラ / ファイルを起動します</p>
+                                </div>
+                            </template>
+                            <input type="file" x-ref="pinFileInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange">
+                        </div>
+                        <input type="text"
+                               x-model="form.comment"
+                               :placeholder="activeType === 1 ? 'どこにいる？' : 'どんな風景？'"
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+                               maxlength="140">
+                    </div>
+
+                    <!-- お店の状況 -->
+                    <div x-show="activeType === 2" class="space-y-4" x-cloak>
+                        <div class="flex items-center justify-between text-sm text-gray-500">
+                            <span>近くの店舗から選択（任意）</span>
+                            <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation().then(() => loadNearbyShops())">再取得</button>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="relative">
+                                <select x-model="form.shopId" @change="if(form.shopId){ const s=nearbyShops.find(x=>String(x.id)===String(form.shopId)); if(s && !form.storeName){ form.storeName = s.name || ''; } }"
+                                        class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 bg-white">
+                                    <option value="">店舗を選択（任意）</option>
+                                    <template x-if="nearbyLoading">
+                                        <option value="" disabled>読込中...</option>
+                                    </template>
+                                    <template x-for="shop in nearbyShops" :key="shop.id">
+                                        <option :value="shop.id" x-text="shop.name ? shop.name : '名称未設定'"></option>
+                                    </template>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1" x-show="nearbyError" x-text="nearbyError"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">店名 <span class="text-red-500">*</span></label>
+                            <input type="text" x-model="form.storeName" placeholder="例: オープンカフェ"
+                                   class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400" required>
+                        </div>
+                        <div>
+                            <p class="block text-sm font-semibold text-gray-700 mb-2">状況を選択</p>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="status in statuses" :key="status.value">
+                                    <button type="button"
+                                            @click="selectStatus(status.value)"
+                                            :class="form.status === status.value ? status.active : 'bg-white border border-gray-200 text-gray-700'"
+                                            class="px-4 py-2 rounded-full font-medium shadow-sm transition-colors">
+                                        <span class="mr-1" x-text="status.emoji"></span>
+                                        <span x-text="status.label"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 混雑/注意 -->
+                    <div x-show="activeType === 4" class="space-y-4" x-cloak>
+                        <div>
+                            <p class="block text-sm font-semibold text-gray-700 mb-2">状況タグ</p>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="tag in tags" :key="tag">
+                                    <button type="button"
+                                            @click="toggleTag(tag)"
+                                            :class="form.tags.includes(tag) ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-white border border-gray-200 text-gray-700'"
+                                            class="px-3 py-2 rounded-full font-medium shadow-sm transition-colors">
+                                        <span x-text="tag"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        <textarea x-model="form.comment" rows="3" placeholder="補足コメント (任意)"
+                                  class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between text-sm text-gray-500">
+                        <span class="flex items-center gap-2"><span>📍</span><span x-text="locationLabel"></span></span>
+                        <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation()">位置を更新</button>
+                    </div>
+
+                    <button type="button" @click="submit" :disabled="loading"
+                            class="w-full inline-flex items-center justify-center px-4 py-3 bg-amber-600 text-white rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60">
+                        <span x-show="!loading">この内容でピンを刺す</span>
+                        <span x-show="loading">送信中...</span>
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
 
 <!-- 店舗登録モーダル -->
 <div id="registerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="z-index: 9999;">
@@ -1547,6 +1714,403 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// 地図掲示板モーダル（Alpineコンポーネント）
+function pinPostModal() {
+    return {
+        open: false,
+        view: 'menu',
+        activeType: null,
+        loading: false,
+        locationLabel: '位置情報が未取得です',
+        types: [
+            { id: 1, label: '待ち合わせ', emoji: '👋', hint: '集合場所を写真付きで共有' },
+            { id: 2, label: 'お店の状況', emoji: '🍽️', hint: '店名と混雑状況を投稿' },
+            { id: 3, label: '今の風景', emoji: '📷', hint: 'いまの様子をシェア' },
+            { id: 4, label: '混雑/注意', emoji: '⚠️', hint: '混雑・注意情報を共有' },
+        ],
+        statuses: [
+            { value: 0, label: '空き', emoji: '🟢', active: 'bg-green-100 text-green-800 border-green-300' },
+            { value: 1, label: '待ち', emoji: '🟡', active: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+            { value: 2, label: '満席', emoji: '🔴', active: 'bg-red-100 text-red-800 border-red-300' },
+        ],
+        tags: ['混雑', '行列', 'セール', '事故/遅延', '天候', '規制'],
+        form: {
+            type: null,
+            comment: '',
+            storeName: '',
+            status: null,
+            tags: [],
+            latitude: null,
+            longitude: null,
+            imagePreview: null,
+            imageFile: null,
+            shopId: null,
+        },
+        currentType: { label: '', emoji: '' },
+        nearbyShops: [],
+        nearbyLoading: false,
+        nearbyError: null,
+        register() {
+            // グローバル関数経由で開閉できるようにする
+            window.openPinModal = () => {
+                this.show();
+            };
+            window.closePinModal = () => {
+                this.close();
+            };
+        },
+        show() {
+            this.view = 'menu';
+            this.activeType = null;
+            this.currentType = { label: '', emoji: '' };
+            this.resetForType(null);
+            this.open = true;
+            this.ensureLocation();
+        },
+        close() {
+            this.open = false;
+            this.loading = false;
+        },
+        backToMenu() {
+            this.view = 'menu';
+            this.activeType = null;
+            this.currentType = { label: '', emoji: '' };
+            this.resetForType(null);
+        },
+        openType(id) {
+            this.activeType = id;
+            this.currentType = this.types.find(t => t.id === id) || { label: '', emoji: '' };
+            this.form.type = id;
+            this.view = 'form';
+            this.resetForType(id);
+
+            if (id === 2) {
+                this.ensureLocation().then(() => {
+                    this.loadNearbyShops();
+                });
+            }
+        },
+        resetForType(id) {
+            this.form.type = id;
+            this.form.comment = '';
+            this.form.imagePreview = null;
+            this.form.imageFile = null;
+            if (this.$refs?.pinFileInput) {
+                this.$refs.pinFileInput.value = '';
+            }
+
+            // 使わない項目はクリアして漏れを防ぐ
+            if (id !== 2) {
+                this.form.storeName = '';
+                this.form.status = null;
+                this.form.shopId = null;
+            }
+
+            if (id !== 4) {
+                this.form.tags = [];
+            }
+        },
+        onFileChange(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            this.form.imageFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.form.imagePreview = e.target?.result;
+            };
+            reader.readAsDataURL(file);
+        },
+        clearImage() {
+            this.form.imagePreview = null;
+            this.form.imageFile = null;
+            if (this.$refs?.pinFileInput) {
+                this.$refs.pinFileInput.value = '';
+            }
+        },
+        toggleTag(tag) {
+            if (this.form.tags.includes(tag)) {
+                this.form.tags = this.form.tags.filter(t => t !== tag);
+            } else {
+                this.form.tags = [...this.form.tags, tag];
+            }
+        },
+        selectStatus(value) {
+            this.form.status = value;
+        },
+        async ensureLocation() {
+            if (this.form.latitude && this.form.longitude) {
+                this.locationLabel = `緯度: ${parseFloat(this.form.latitude).toFixed(5)}, 経度: ${parseFloat(this.form.longitude).toFixed(5)}`;
+                return;
+            }
+
+            try {
+                if (typeof window.getCurrentLocation === 'function') {
+                    const loc = await window.getCurrentLocation();
+                    if (loc) {
+                        this.form.latitude = loc.lat;
+                        this.form.longitude = loc.lng;
+                    }
+                } else if (navigator.geolocation) {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0,
+                        });
+                    });
+                    this.form.latitude = pos.coords.latitude;
+                    this.form.longitude = pos.coords.longitude;
+                }
+            } catch (error) {
+                console.warn('位置情報の取得に失敗しました', error);
+            }
+
+            this.locationLabel = this.form.latitude
+                ? `緯度: ${parseFloat(this.form.latitude).toFixed(5)}, 経度: ${parseFloat(this.form.longitude).toFixed(5)}`
+                : '位置情報が未取得です';
+        },
+        async loadNearbyShops() {
+            if (!this.form.latitude || !this.form.longitude) return;
+            this.nearbyLoading = true;
+            this.nearbyError = null;
+            try {
+                const baseUrl = window.APP_BASE_URL || '';
+                const params = new URLSearchParams({
+                    latitude: this.form.latitude,
+                    longitude: this.form.longitude,
+                });
+                const res = await fetch(`${baseUrl}/api/shops/nearby?${params.toString()}`);
+                const data = await res.json();
+                this.nearbyShops = Array.isArray(data) ? data : (data.data || []);
+            } catch (error) {
+                console.warn('近隣店舗取得に失敗', error);
+                this.nearbyError = '近隣店舗の取得に失敗しました';
+            } finally {
+                this.nearbyLoading = false;
+            }
+        },
+        async submit() {
+            this.loading = true;
+            await this.ensureLocation();
+
+            if (!this.form.latitude || !this.form.longitude) {
+                alert('位置情報が取得できませんでした。更新してから再度投稿してください。');
+                this.loading = false;
+                return;
+            }
+
+            if (!this.activeType) {
+                alert('投稿する内容を選んでください');
+                this.loading = false;
+                return;
+            }
+
+            if ([1, 3].includes(this.activeType) && !this.form.imageFile) {
+                alert('写真を追加してください');
+                this.loading = false;
+                return;
+            }
+
+            if (this.activeType === 2 && !this.form.storeName.trim()) {
+                alert('店名を入力してください');
+                this.loading = false;
+                return;
+            }
+
+            if (this.activeType === 2 && (this.form.status === null || this.form.status === undefined)) {
+                alert('状況を選択してください');
+                this.loading = false;
+                return;
+            }
+
+            if (this.activeType === 4 && (!this.form.tags || this.form.tags.length === 0)) {
+                alert('状況タグを選択してください');
+                this.loading = false;
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const fd = new FormData();
+            fd.append('type', this.activeType);
+            fd.append('latitude', this.form.latitude);
+            fd.append('longitude', this.form.longitude);
+            if (this.form.comment) fd.append('comment', this.form.comment.trim());
+            if (this.form.storeName) fd.append('store_name', this.form.storeName.trim());
+            if (this.form.status !== null && this.form.status !== undefined) fd.append('status', this.form.status);
+            if (Array.isArray(this.form.tags)) {
+                this.form.tags.forEach(tag => fd.append('tags[]', tag));
+            }
+            if (this.form.shopId) fd.append('shop_id', this.form.shopId);
+            if (this.form.imageFile) {
+                fd.append('image', this.form.imageFile);
+            }
+
+            try {
+                const res = await fetch('/api/pins', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: fd,
+                });
+
+                const json = await res.json().catch(() => null);
+                if (!res.ok || !json || json.success === false) {
+                    const msg = json?.message || '投稿に失敗しました';
+                    alert(msg);
+                    this.loading = false;
+                    return;
+                }
+
+                const pin = json.data || json.pin || json;
+                if (window.pinBoard && typeof window.pinBoard.addPin === 'function') {
+                    window.pinBoard.addPin(pin);
+                }
+
+                this.loading = false;
+                this.close();
+                this.resetForType(this.activeType);
+                this.clearImage();
+            } catch (error) {
+                console.error('pin submit error', error);
+                alert('投稿中にエラーが発生しました');
+                this.loading = false;
+            }
+        },
+    };
+}
+
+// ピン管理（フロント側の一時保持。APIがあれば置き換え可能）
+window.pinBoard = {
+    pins: [],
+    markers: [],
+    emojiByType: {
+        1: '👋',
+        2: '🍽️',
+        3: '📷',
+        4: '⚠️',
+    },
+    statusLabel(value) {
+        const map = { 0: '空き', 1: '待ち', 2: '満席' };
+        return map[value] || '';
+    },
+    renderPins() {
+        if (!inlineMap) return;
+
+        this.markers.forEach(marker => inlineMap.removeLayer(marker));
+        this.markers = [];
+
+        this.pins.forEach(pin => {
+            if (!pin.latitude || !pin.longitude) return;
+
+            const icon = createEmojiIcon(this.emojiByType[pin.type] || '📍');
+            const popupHtml = this.buildPopup(pin);
+
+            const marker = L.marker([pin.latitude, pin.longitude], { icon }).addTo(inlineMap);
+            marker.bindPopup(popupHtml);
+            this.markers.push(marker);
+        });
+    },
+    buildPopup(pin) {
+        const escapeHtml = (text = '') => String(text).replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        }[char]));
+
+        const tags = pin.tags || [];
+        const imageUrl = pin.imageUrl || pin.image_url;
+        const storeName = pin.storeName || pin.store_name;
+
+        const tagsHtml = tags && tags.length
+            ? `<div class="flex flex-wrap gap-1 mt-2">${tags.map(tag => `<span class="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs">${escapeHtml(tag)}</span>`).join('')}</div>`
+            : '';
+
+        const statusHtml = (pin.status === 0 || pin.status === 1 || pin.status === 2)
+            ? `<span class="inline-flex items-center px-2 py-1 text-xs rounded-full ${pin.status === 0 ? 'bg-green-100 text-green-800' : pin.status === 1 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}">${this.statusLabel(pin.status)}</span>`
+            : '';
+
+        const imageHtml = imageUrl
+            ? `<img src="${escapeHtml(imageUrl)}" class="w-full max-h-40 object-cover rounded-lg mb-2" alt="投稿画像">`
+            : '';
+
+        const commentHtml = pin.comment
+            ? `<p class="text-sm text-gray-800">${escapeHtml(pin.comment)}</p>`
+            : '';
+
+        const storeHtml = storeName
+            ? `<p class="text-sm font-semibold text-gray-900">${escapeHtml(storeName)}</p>`
+            : '';
+
+        return `
+            <div class="space-y-2">
+                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}<span>${escapeHtml(storeName || '')}</span></div>
+                ${imageHtml}
+                ${storeHtml}
+                ${statusHtml}
+                ${commentHtml}
+                ${tagsHtml}
+            </div>
+        `;
+    },
+    addPin(pin) {
+        if (!pin) return;
+            const normalized = {
+            id: pin.id,
+            type: Number(pin.type),
+            comment: pin.comment || '',
+            storeName: pin.store_name || pin.storeName || '',
+            status: pin.status !== undefined && pin.status !== null ? Number(pin.status) : null,
+            tags: pin.tags || [],
+            latitude: parseFloat(pin.latitude),
+            longitude: parseFloat(pin.longitude),
+            imageUrl: pin.image_url || pin.imageUrl || null,
+                shopId: pin.shop_id || pin.shopId || null,
+            createdAt: pin.created_at || pin.createdAt,
+        };
+        this.pins.unshift(normalized);
+        this.renderPins();
+    },
+    async loadInitialPins() {
+        try {
+            const baseUrl = window.APP_BASE_URL || '';
+            const response = await fetch(`${baseUrl}/api/pins`);
+            if (!response.ok) return;
+            const data = await response.json();
+            const pins = Array.isArray(data) ? data : (data.data || []);
+            this.pins = pins.map(pin => ({
+                ...pin,
+                storeName: pin.store_name || pin.storeName,
+                imageUrl: pin.image_url || pin.imageUrl,
+                type: Number(pin.type),
+                status: pin.status !== undefined && pin.status !== null ? Number(pin.status) : null,
+            }));
+            this.renderPins();
+        } catch (error) {
+            console.warn('ピンの取得に失敗しました（APIが未実装の可能性）', error);
+        }
+    },
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.pinBoard) {
+        window.pinBoard.loadInitialPins();
+    }
+});
+
+// 絵文字マーカーを生成
+function createEmojiIcon(emoji) {
+    return L.divIcon({
+        className: 'emoji-pin-marker',
+        html: `<div class="flex items-center justify-center text-2xl" style="width: 36px; height: 36px;">${emoji || '📍'}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+    });
+}
 </script>
 @endsection
 

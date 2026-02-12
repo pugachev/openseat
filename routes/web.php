@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\Auth\LoginController;
 use App\Http\Controllers\Admin\Auth\RegisterController;
 use App\Http\Controllers\AdminShopController;
+use App\Http\Controllers\PinController;
 use App\Http\Controllers\ShopController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,9 @@ Route::get('/shop/control/{secret_key}', [ShopController::class, 'edit'])->name(
 Route::post('/shop/control/{secret_key}/update', [ShopController::class, 'update'])->name('shops.update');
 Route::post('/api/shops/{secret_key}/status', [ShopController::class, 'updateStatus'])->name('shops.status.update');
 Route::post('/api/shops/{secret_key}/name', [ShopController::class, 'updateName'])->name('shops.name.update');
+// ピン掲示板 API
+Route::get('/api/pins', [PinController::class, 'index']);
+Route::post('/api/pins', [PinController::class, 'store']);
 
 // 匿名店舗登録ルート（認証不要）
 Route::get('/shop/register', [ShopController::class, 'createGuest'])->name('shops.register');

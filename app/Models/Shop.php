@@ -13,6 +13,11 @@ class Shop extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function pins()
+    {
+        return $this->hasMany(Pin::class);
+    }
     protected $fillable = [
         'name',
         'category',
