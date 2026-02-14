@@ -1359,24 +1359,24 @@ if (document.readyState === 'loading') {
                 </div>
             </template>
             <!-- 固定フッターの送信ボタン（フォーム表示時のみ） -->
-            <!-- NOTE: moved outside of scroll container to avoid being hidden by overflow -->
+            <div class="sticky bottom-0 inset-x-0 -mx-4 sm:-mx-6 mt-4 flex justify-center pointer-events-none">
+                <div x-show="view === 'form'" x-cloak
+                    class="w-full max-w-2xl px-4 sm:px-6 pb-4 pointer-events-auto">
+                    <div class="bg-white rounded-t-2xl px-4 py-3 border-t border-gray-200 shadow-lg">
+                        <button type="button" @click="submit" :disabled="loading"
+                                class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
+                                style="background-color:#f59e0b !important; color:#ffffff !important;">
+                            <span x-show="!loading">この内容でピンを刺す</span>
+                            <span x-show="loading">送信中...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="fixed inset-x-0 bottom-0 flex justify-center pointer-events-none z-[30000]">
-    <div x-show="view === 'form'" style="display:none;" x-cloak
-         class="w-full max-w-2xl px-4 sm:px-6 pb-6 pointer-events-auto">
-        <div class="bg-white rounded-t-2xl px-4 py-3 border-t border-gray-200 shadow-lg">
-            <button type="button" @click="submit" :disabled="loading"
-                    class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
-                    style="background-color:#f59e0b !important; color:#ffffff !important;">
-                <span x-show="!loading">この内容でピンを刺す</span>
-                <span x-show="loading">送信中...</span>
-            </button>
-        </div>
-    </div>
-</div>
+
 
 <!-- 店舗登録モーダル -->
 <div id="registerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="z-index: 9999;">
