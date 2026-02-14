@@ -1239,7 +1239,7 @@ if (document.readyState === 'loading') {
             </div>
         </div>
 
-        <div class="px-4 sm:px-6 py-5 max-h-[85vh] overflow-y-auto">
+        <div class="px-4 sm:px-6 py-5 max-h-[85vh] overflow-y-auto relative">
             <!-- メニュー：4ボタン縦並び -->
             <div x-show="view === 'menu'" class="space-y-3" x-cloak>
                 <template x-for="item in types" :key="item.id">
@@ -1260,7 +1260,7 @@ if (document.readyState === 'loading') {
 
             <!-- hidden location -->
             <template x-if="view === 'form'">
-                <div class="space-y-5" x-cloak>
+                <div class="space-y-5 pb-24" x-cloak>
                     <input type="hidden" name="pin_latitude" x-model="form.latitude">
                     <input type="hidden" name="pin_longitude" x-model="form.longitude">
 
@@ -1356,14 +1356,24 @@ if (document.readyState === 'loading') {
                         <span class="flex items-center gap-2"><span>📍</span><span x-text="locationLabel"></span></span>
                         <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation()">位置を更新</button>
                     </div>
-
-                    <button type="button" @click="submit" :disabled="loading"
-                            class="w-full inline-flex items-center justify-center px-4 py-3 bg-amber-600 text-white rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60">
-                        <span x-show="!loading">この内容でピンを刺す</span>
-                        <span x-show="loading">送信中...</span>
-                    </button>
                 </div>
             </template>
+            <!-- 固定フッターの送信ボタン（フォーム表示時のみ） -->
+            <!-- NOTE: moved outside of scroll container to avoid being hidden by overflow -->
+        </div>
+    </div>
+</div>
+
+<div class="fixed inset-x-0 bottom-0 flex justify-center pointer-events-none z-[30000]">
+    <div x-show="view === 'form'" style="display:none;" x-cloak
+         class="w-full max-w-2xl px-4 sm:px-6 pb-6 pointer-events-auto">
+        <div class="bg-white rounded-t-2xl px-4 py-3 border-t border-gray-200 shadow-lg">
+            <button type="button" @click="submit" :disabled="loading"
+                    class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
+                    style="background-color:#f59e0b !important; color:#ffffff !important;">
+                <span x-show="!loading">この内容でピンを刺す</span>
+                <span x-show="loading">送信中...</span>
+            </button>
         </div>
     </div>
 </div>
