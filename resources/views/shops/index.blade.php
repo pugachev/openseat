@@ -12,13 +12,13 @@
     // 簡単なテスト
     // console.log('スクリプトが読み込まれました');
 </script>
-<div class="mb-6">
+<div class="shops-layout">
     <h2 class="text-3xl font-bold text-gray-900 mb-2">空き状況を確認</h2>
     <p class="text-gray-600">現在の混雑状況を確認できます</p>
 </div>
 
 <!-- 位置情報更新ボタン -->
-<div class="mb-4">
+<div class="shops-layout pt-0 pb-3">
     <button id="updateLocationBtn"
             onclick="handleLocationUpdate(event); return false;"
             class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md cursor-pointer">
@@ -27,7 +27,7 @@
     <p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
     <p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
 </div>
-
+    
 <script>
 // インラインで位置情報更新を処理（JavaScriptが読み込まれていない場合のフォールバック）
 function handleLocationUpdate(event) {
@@ -169,10 +169,25 @@ function handleLocationUpdate(event) {
 // 地図を初期化（インライン版）
 let inlineMap = null;
 let inlineMarkers = [];
+let inlineMapInitializationPromise = null;
 
 function initMapInline(lat, lng) {
     // console.log('initMapInline呼び出し: lat=' + lat + ', lng=' + lng);
-    return new Promise((resolve, reject) => {
+    if (inlineMap) {
+        inlineMap.setView([lat, lng], 16);
+        setTimeout(() => {
+            if (inlineMap) {
+                inlineMap.invalidateSize();
+            }
+        }, 100);
+        return Promise.resolve(inlineMap);
+    }
+
+    if (inlineMapInitializationPromise) {
+        return inlineMapInitializationPromise;
+    }
+
+    inlineMapInitializationPromise = new Promise((resolve, reject) => {
         // Leafletが読み込まれているか確認
         if (typeof L !== 'undefined') {
             // console.log('Leaflet.jsは既に読み込まれています');
@@ -182,7 +197,7 @@ function initMapInline(lat, lng) {
                 // 少し遅延させてからresolve（地図が確実に描画されるまで待つ）
                 setTimeout(() => {
                     // console.log('initMapInline resolve');
-                    resolve();
+                    resolve(inlineMap);
                 }, 500);
             } catch (error) {
                 console.error('createMap呼び出しエラー:', error);
@@ -212,7 +227,7 @@ function initMapInline(lat, lng) {
                     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
                 });
                 createMap(lat, lng);
-                resolve();
+                resolve(inlineMap);
             };
             leafletJS.onerror = () => {
                 console.error('Leaflet.jsの読み込みに失敗しました');
@@ -220,7 +235,11 @@ function initMapInline(lat, lng) {
             };
             document.head.appendChild(leafletJS);
         }
+    }).finally(() => {
+        inlineMapInitializationPromise = null;
     });
+
+    return inlineMapInitializationPromise;
 }
 
 function createMap(lat, lng) {
@@ -265,6 +284,12 @@ function createMap(lat, lng) {
         inlineMap.remove();
         inlineMap = null;
     }
+
+    // Leafletの内部状態がDOM側に残っている場合の二重初期化を防ぐ
+    if (mapElement._leaflet_id) {
+        delete mapElement._leaflet_id;
+    }
+    mapElement.innerHTML = '';
 
     try {
         // console.log('地図を初期化します...');
@@ -543,8 +568,46 @@ if (document.readyState === 'loading') {
 .tab-content.hidden {
     display: none !important;
 }
+
+.shops-layout {
+    width: 100%;
+    margin: 0 auto;
+    /* padding: 1.5rem 1rem 2rem; */
+}
+
+#map {
+    height: 480px;
+}
+
+#mapView {
+    margin-bottom: 2rem;
+}
+
+@media (min-width: 640px) {
+    #map {
+        height: 680px;
+    }
+}
+
+@media (min-width: 1024px) {
+    #map {
+        height: 760px;
+    }
+
+    #mapView {
+        margin-bottom: 3rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .shops-layout {
+        width: 80vw;
+        max-width: 80vw;
+    }
+}
 </style>
-<div class="mb-6 border-b border-gray-200">
+<div class="shops-layout pt-2">
+<div class="mb-4 border-b border-gray-200">
     <nav class="flex space-x-8">
         <button id="listTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
             リスト表示
@@ -600,7 +663,7 @@ if (document.readyState === 'loading') {
 
 <!-- 地図表示エリア -->
 <div id="mapView" class="tab-content hidden">
-    <div id="map" class="w-full h-[600px] rounded-lg shadow-md border border-gray-200"></div>
+    <div id="map" class="w-full rounded-lg shadow-md border border-gray-200"></div>
 </div>
 
 <!-- 店舗情報ダイアログ -->
@@ -625,6 +688,7 @@ if (document.readyState === 'loading') {
             </a>
         </div>
     </div>
+</div>
 </div>
 @endsection
 
