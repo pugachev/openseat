@@ -1,5 +1,85 @@
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
+# Open Seat
+
+理容室・美容室向け空き状況共有アプリです。Laravel Sail (Docker) で動作します。
+
+## Quick Start (初回セットアップ)
+
+1. 環境ファイルを作成
+
+```bash
+cp .env.example .env
+```
+
+2. `.env` のDB設定を確認
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=open_seat
+DB_USERNAME=mtake
+DB_PASSWORD=password
+```
+
+3. 依存関係をインストール
+
+```bash
+composer install
+```
+
+4. Sailを起動
+
+```bash
+./vendor/bin/sail up -d
+```
+
+5. アプリキー生成
+
+```bash
+./vendor/bin/sail artisan key:generate
+```
+
+6. マイグレーションと初期データ投入
+
+```bash
+./vendor/bin/sail artisan migrate --seed
+```
+
+7. 画像公開用のストレージリンク作成
+
+```bash
+./vendor/bin/sail artisan storage:link
+```
+
+## フロントエンド
+
+```bash
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev
+```
+
+## よくあるハマりどころ: DB名不一致
+
+- `MYSQL_DATABASE=${DB_DATABASE}` はMySQLコンテナ初回起動時のみ反映されます。
+- 既存ボリュームがある状態で `.env` の `DB_DATABASE` を変更しても、コンテナ内の既存DB名は自動で変わりません。
+
+対処方法:
+
+1. 開発データを消してよい場合（推奨）
+
+```bash
+./vendor/bin/sail down -v
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan migrate --seed
+```
+
+2. 既存データを保持したい場合
+- `.env` の `DB_DATABASE` と同名のDBを作成
+- `.env` の `DB_USERNAME` に権限付与
+- その後 `migrate --seed` を実行
+
 <p align="center">
 <a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>

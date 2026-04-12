@@ -29,6 +29,17 @@ Docker環境(Sail)に合わせて `.env` を修正してください。
 
 **補足:** データベースはマイグレーション実行時に自動作成されます。
 
+**初回セットアップ時の注意（重要）:**
+- `MYSQL_DATABASE=${DB_DATABASE}` は **MySQLコンテナ初回起動時のみ** 反映されます。
+- 既存Dockerボリュームがある場合、`.env` の `DB_DATABASE` を変更しても既存DB名は自動変更されません。
+- `DB_DATABASE=open_seat` なのにコンテナ内に `openseat` しかない、という不一致が起こり得ます。
+
+**不一致が起きた場合の対処:**
+1. 開発環境でデータを消してよい場合: `./vendor/bin/sail down -v` → `./vendor/bin/sail up -d` → `./vendor/bin/sail artisan migrate --seed`
+2. 既存データを保持したい場合: `open_seat` を手動作成し、`.env` のユーザーに権限付与した上で `migrate --seed` を実行
+
+**注記:** MySQLのDB自体は「マイグレーションで自動作成」ではなく、通常はコンテナ初期化または手動作成で用意します。
+
 ### Step 0.5: フロントエンドアセットのセットアップ
 Tailwind CSSを使用するため、npmパッケージのインストールとビルドが必要です。
 
@@ -47,6 +58,15 @@ Tailwind CSSを使用するため、npmパッケージのインストールと�
    ```
 
 **注意:** 本番環境（Xserver等）では、ローカルでビルドした `public/build/` ディレクトリをアップロードしてください。
+
+### Step 0.6: 画像アップロード用のストレージリンク作成
+画像ファイルを `storage/app/public` に保存し、Web公開ディレクトリから参照できるようにシンボリックリンクを作成してください。
+
+```bash
+./vendor/bin/sail artisan storage:link
+```
+
+**補足:** 上記により `public/storage` -> `storage/app/public` のリンクが作成されます。
 
 ### Step 1: マイグレーションとモデルの作成
 以下のスキーマで `Shop` モデルとマイグレーションファイルを作成し、マイグレートを実行してください。
