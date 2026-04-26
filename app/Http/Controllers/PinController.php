@@ -5,9 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pin;
 use App\Models\Shop;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -60,53 +58,23 @@ class PinController extends Controller
 
         $data = $validator->validated();
 
-        $pin = DB::transaction(function () use ($data, $request) {
-            $shopId = $data['shop_id'] ?? null;
-            $storeName = isset($data['store_name']) ? trim($data['store_name']) : null;
+        $pin = new Pin();
+        $pin->type = (int) $data['type'];
+        $pin->latitude = (float) $data['latitude'];
+        $pin->longitude = (float) $data['longitude'];
+        $pin->comment = $data['comment'] ?? null;
+        $pin->store_name = $data['store_name'] ?? null;
+        $pin->status = $data['status'] ?? null;
+        $pin->tags = $data['tags'] ?? [];
+        $pin->user_id = auth()->id();
+        $pin->shop_id = $data['shop_id'] ?? null;
 
-            if ((int) $data['type'] === 2) {
-                if ($shopId) {
-                    $shop = Shop::find($shopId);
-                    if ($shop) {
-                        $storeName = $shop->name;
-                    }
-                } else {
-                    $shop = Shop::create([
-                        'name' => $storeName,
-                        'category' => null,
-                        'phone' => '',
-                        'address' => '',
-                        'latitude' => (float) $data['latitude'],
-                        'longitude' => (float) $data['longitude'],
-                        'status' => (int) $data['status'],
-                        'secret_key' => Str::random(32),
-                        'user_id' => auth()->id(),
-                    ]);
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('pins', 'public');
+            $pin->image_path = $path;
+        }
 
-                    $shopId = $shop->id;
-                }
-            }
-
-            $pin = new Pin();
-            $pin->type = (int) $data['type'];
-            $pin->latitude = (float) $data['latitude'];
-            $pin->longitude = (float) $data['longitude'];
-            $pin->comment = $data['comment'] ?? null;
-            $pin->store_name = $storeName;
-            $pin->status = $data['status'] ?? null;
-            $pin->tags = $data['tags'] ?? [];
-            $pin->user_id = auth()->id();
-            $pin->shop_id = $shopId;
-
-            if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('pins', 'public');
-                $pin->image_path = $path;
-            }
-
-            $pin->save();
-
-            return $pin;
-        });
+        $pin->save();
 
         return response()->json([
             'success' => true,

@@ -2,10 +2,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
 
-// Blade インラインスクリプトは window.L を見る。未設定だと CDN 版を読み込み、別コピーの Leaflet が同一 #map を掴んで
-// 「Map container is already initialized」になる。
-window.L = L;
-
 // Leafletのデフォルトアイコン設定（Webpack/Vite環境での問題を回避）
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -18,16 +14,6 @@ let map = null;
 let markers = [];
 let userMarker = null;
 let currentLocation = null;
-
-/** 店舗ページのインライン地図（blade）と二重初期化しないよう、先に破棄する */
-window.teardownMapJsLeaflet = function teardownMapJsLeaflet() {
-    if (map) {
-        map.remove();
-        map = null;
-    }
-    markers = [];
-    userMarker = null;
-};
 
 // カスタムアイコンの作成
 function createCustomIcon(status) {
@@ -55,34 +41,13 @@ function createCustomIcon(status) {
     });
 }
 
-function replaceMapDomElement(el) {
-    if (!el || !el.parentNode) return el;
-    const fresh = document.createElement('div');
-    fresh.id = el.id;
-    fresh.className = el.className;
-    if (el.style && el.style.cssText) {
-        fresh.style.cssText = el.style.cssText;
-    }
-    el.parentNode.replaceChild(fresh, el);
-    return fresh;
-}
-
 // 地図の初期化
 function initMap(lat = 35.6812, lng = 139.7671) {
-    if (typeof window.teardownShopsInlineMap === 'function') {
-        window.teardownShopsInlineMap();
-    }
     if (map) {
         map.remove();
-        map = null;
     }
 
-    let el = document.getElementById('map');
-    if (el && el._leaflet_id != null) {
-        el = replaceMapDomElement(el);
-    }
-
-    map = L.map(el || 'map').setView([lat, lng], 13);
+    map = L.map('map').setView([lat, lng], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
@@ -504,8 +469,10 @@ function initializeMap() {
     // ダイアログ
     setupDialog();
 
-    // 地図の初回表示は shops/index のインラインスクリプト（initializeInline → initMapInline）に任せる。
-    // ここで initMap すると L.map が二重に呼ばれ「Map container is already initialized」になる。
+    // 地図を初期化（デフォルトは東京、初期表示が地図タブなので必ず初期化）
+    if (document.getElementById('map')) {
+        initMap();
+    }
 }
 
 // DOMContentLoadedイベントを待つ

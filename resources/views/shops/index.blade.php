@@ -189,36 +189,6 @@ let inlineMap = null;
 let inlineMarkers = [];
 let currentOpenMarker = null; // 現在開いているマーカーを追跡
 
-window.teardownShopsInlineMap = function teardownShopsInlineMap() {
-    inlineMarkers.forEach(marker => {
-        try {
-            if (inlineMap) inlineMap.removeLayer(marker);
-        } catch (e) { /* ignore */ }
-    });
-    inlineMarkers = [];
-    currentOpenMarker = null;
-    if (inlineMap) {
-        try {
-            inlineMap.remove();
-        } catch (e) { /* ignore */ }
-        inlineMap = null;
-    }
-};
-
-/** 参照を失った Leaflet インスタンス用。_leaflet_id だけ残っている #map を確実に空にする */
-function replaceMapContainerElement(el) {
-    if (!el || !el.parentNode) return el;
-    const parent = el.parentNode;
-    const fresh = document.createElement('div');
-    fresh.id = el.id;
-    fresh.className = el.className;
-    if (el.style && el.style.cssText) {
-        fresh.style.cssText = el.style.cssText;
-    }
-    parent.replaceChild(fresh, el);
-    return fresh;
-}
-
 function initMapInline(lat, lng) {
     // console.log('initMapInline呼び出し: lat=' + lat + ', lng=' + lng);
     return new Promise((resolve, reject) => {
@@ -274,24 +244,13 @@ function initMapInline(lat, lng) {
 
 function createMap(lat, lng) {
     // console.log('createMap開始: lat=' + lat + ', lng=' + lng);
-    if (typeof window.teardownMapJsLeaflet === 'function') {
-        window.teardownMapJsLeaflet();
-    }
-    if (typeof window.teardownShopsInlineMap === 'function') {
-        window.teardownShopsInlineMap();
-    }
-
-    let mapElement = document.getElementById('map');
+    const mapElement = document.getElementById('map');
     // console.log('mapElement:', mapElement);
 
     if (!mapElement) {
         console.error('地図要素が見つかりません');
         alert('地図要素が見つかりません。ID="map"の要素が存在するか確認してください。');
         return;
-    }
-
-    if (mapElement._leaflet_id != null) {
-        mapElement = replaceMapContainerElement(mapElement);
     }
 
     // 地図要素の親要素を確認
@@ -318,6 +277,13 @@ function createMap(lat, lng) {
     }
 
     // console.log('地図要素のサイズ（設定後）:', mapElement.offsetWidth, 'x', mapElement.offsetHeight);
+
+    // 既存の地図を削除
+    if (inlineMap) {
+        // console.log('既存の地図を削除します');
+        inlineMap.remove();
+        inlineMap = null;
+    }
 
     try {
         // console.log('地図を初期化します...');
