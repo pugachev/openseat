@@ -1376,6 +1376,29 @@ if (document.readyState === 'loading') {
     </div>
 </div>
 
+<!-- ピン画像拡大ビューア -->
+<div id="pinImageViewer" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4" style="z-index: 11000;" aria-hidden="true">
+    <button type="button"
+        id="pinImageViewerCloseBtn"
+        class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-gray-300"
+        aria-label="画像を閉じる">&times;</button>
+    <div class="w-full max-w-6xl max-h-[92vh] bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
+        </div>
+        <div class="p-4 md:p-6 bg-gray-100">
+            <img id="pinImageViewerImage"
+                src=""
+                alt="拡大画像"
+                class="w-full max-h-[65vh] object-contain rounded-lg bg-black">
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-white">
+            <p class="text-sm font-medium text-gray-700 mb-1">メッセージ</p>
+            <p id="pinImageViewerMessage" class="text-base text-gray-900 whitespace-pre-wrap break-words">コメントなし</p>
+        </div>
+    </div>
+</div>
+
 
 
 <!-- 店舗登録モーダル -->
@@ -2091,7 +2114,7 @@ window.pinBoard = {
             : '';
 
         const imageHtml = imageUrl
-            ? `<img src="${escapeHtml(imageUrl)}" class="w-full max-h-40 object-cover rounded-lg mb-2" alt="投稿画像">`
+            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}">`
             : '';
 
         const commentHtml = pin.comment
@@ -2156,7 +2179,74 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.pinBoard) {
         window.pinBoard.loadInitialPins();
     }
+
+    setupPinImageViewer();
 });
+
+function openPinImageViewer(src, altText = '拡大画像', message = '') {
+    const viewer = document.getElementById('pinImageViewer');
+    const image = document.getElementById('pinImageViewerImage');
+    const messageEl = document.getElementById('pinImageViewerMessage');
+
+    if (!viewer || !image || !src) return;
+
+    image.src = src;
+    image.alt = altText;
+    if (messageEl) {
+        const text = (message || '').trim();
+        messageEl.textContent = text || 'コメントなし';
+    }
+    viewer.classList.remove('hidden');
+    viewer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePinImageViewer() {
+    const viewer = document.getElementById('pinImageViewer');
+    const image = document.getElementById('pinImageViewerImage');
+    const messageEl = document.getElementById('pinImageViewerMessage');
+
+    if (!viewer || !image) return;
+
+    viewer.classList.add('hidden');
+    viewer.setAttribute('aria-hidden', 'true');
+    image.src = '';
+    if (messageEl) {
+        messageEl.textContent = 'コメントなし';
+    }
+    document.body.style.overflow = '';
+}
+
+function setupPinImageViewer() {
+    const viewer = document.getElementById('pinImageViewer');
+    const closeBtn = document.getElementById('pinImageViewerCloseBtn');
+
+    if (!viewer) return;
+
+    closeBtn?.addEventListener('click', closePinImageViewer);
+
+    viewer.addEventListener('click', (event) => {
+        if (event.target === viewer) {
+            closePinImageViewer();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !viewer.classList.contains('hidden')) {
+            closePinImageViewer();
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLImageElement)) return;
+        if (!target.classList.contains('pin-popup-image')) return;
+
+        const src = target.dataset.fullSrc || target.src;
+        const message = target.dataset.message || '';
+        openPinImageViewer(src, target.alt || '拡大画像', message);
+    });
+}
 
 // 絵文字マーカーを生成
 function createEmojiIcon(emoji) {
