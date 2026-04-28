@@ -353,10 +353,10 @@ function updateShopList(shops) {
     // 店舗カードを生成
     shops.forEach(shop => {
         const statusLabel = shop.status_label || (shop.status === 0 ? '空き' : shop.status === 1 ? '待ち' : '満席');
-        const statusClass = shop.status === 0 
-            ? 'bg-green-100 text-green-800' 
-            : shop.status === 1 
-            ? 'bg-yellow-100 text-yellow-800' 
+        const statusClass = shop.status === 0
+            ? 'bg-green-100 text-green-800'
+            : shop.status === 1
+            ? 'bg-yellow-100 text-yellow-800'
             : 'bg-red-100 text-red-800';
 
         const shopCard = document.createElement('div');
@@ -397,22 +397,22 @@ function updateShopList(shops) {
 // リスト表示のステータスを更新する関数（DOM操作のみ、Ajax不要）
 function updateShopListStatus(secretKey, newStatus) {
     if (!secretKey) return;
-    
+
     // secret_keyで該当する店舗カードを検索
     const container = document.getElementById('shopListContainer');
     if (!container) return;
-    
+
     const shopCard = container.querySelector(`[data-secret-key="${secretKey}"]`);
     if (!shopCard) return;
-    
+
     // ステータスラベルとクラスを更新
     const statusLabel = newStatus === 0 ? '空き' : newStatus === 1 ? '待ち' : '満席';
-    const statusClass = newStatus === 0 
-        ? 'bg-green-100 text-green-800' 
-        : newStatus === 1 
-        ? 'bg-yellow-100 text-yellow-800' 
+    const statusClass = newStatus === 0
+        ? 'bg-green-100 text-green-800'
+        : newStatus === 1
+        ? 'bg-yellow-100 text-yellow-800'
         : 'bg-red-100 text-red-800';
-    
+
     // ステータスバッジを更新
     const statusBadge = shopCard.querySelector('.shop-status-badge');
     if (statusBadge) {
@@ -494,7 +494,7 @@ function displayShopsOnMap(shops, userLat, userLng) {
                 <span class="text-xs text-blue-600 mt-1 block">タップして詳細を表示</span>
             </div>
         `;
-        
+
         marker.bindPopup(popupContent);
 
         // マーカークリック時はポップアップのみ表示（モーダルは表示しない）
@@ -526,12 +526,12 @@ function displayShopsOnMap(shops, userLat, userLng) {
                                 currentOpenMarker = null; // マーカーをクリア
                             });
                         }
-                        
+
                         // ポップアップのコンテンツ部分をクリック可能にする
                         const popupContent = popupElement.querySelector('.leaflet-popup-content');
                         if (popupContent) {
                             popupContent.style.cursor = 'pointer';
-                            
+
                             // ポップアップコンテンツのクリックイベント
                             const handleContentClick = (e) => {
                                 // 閉じるボタンがクリックされた場合は何もしない
@@ -545,7 +545,7 @@ function displayShopsOnMap(shops, userLat, userLng) {
                                 marker.closePopup();
             showShopDialogInline(shop);
                             };
-                            
+
                             // 既存のイベントリスナーを削除してから追加（重複防止）
                             popupContent.removeEventListener('click', handleContentClick);
                             popupContent.addEventListener('click', handleContentClick);
@@ -554,7 +554,7 @@ function displayShopsOnMap(shops, userLat, userLng) {
                 }
             }, 100);
         });
-        
+
         // ポップアップが閉じた時にマーカーをクリア
         marker.on('popupclose', () => {
             if (currentOpenMarker === marker) {
@@ -598,9 +598,9 @@ function showShopDialogInline(shop) {
         <label for="dialogShopNameInput" class="block text-sm font-medium text-gray-700 mb-2">
             店舗名（任意）
         </label>
-        <input type="text" 
-               id="dialogShopNameInput" 
-               value="${escapedName}" 
+        <input type="text"
+               id="dialogShopNameInput"
+               value="${escapedName}"
                placeholder="店舗名（任意）"
                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold"
                data-secret-key="${shop.secret_key}">
@@ -624,13 +624,13 @@ function showShopDialogInline(shop) {
             ${shop.category ? `<p class="text-gray-600">
                 <span class="font-medium">業種:</span> ${shop.category}
             </p>` : ''}
-            
+
             <!-- ステータスセレクトボックス -->
             <div>
                 <label for="dialogStatusSelect" class="block text-sm font-medium text-gray-700 mb-2">
                     ステータス
                 </label>
-                <select id="dialogStatusSelect" 
+                <select id="dialogStatusSelect"
                         data-secret-key="${shop.secret_key}"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="0" ${shop.status == 0 ? 'selected' : ''}>🟢 空き</option>
@@ -638,22 +638,22 @@ function showShopDialogInline(shop) {
                     <option value="2" ${shop.status == 2 ? 'selected' : ''}>🔴 満席</option>
                 </select>
             </div>
-            
+
             <!-- 住所 -->
             ${shop.address ? `<p class="text-gray-600">
                 <span class="font-medium">住所:</span> ${shop.address}
             </p>` : ''}
-            
+
             <!-- 電話番号 -->
             ${shop.phone ? `<p class="text-gray-600">
                 <span class="font-medium">電話:</span> ${shop.phone}
             </p>` : ''}
-            
+
             <!-- 距離 -->
             ${shop.distance ? `<p class="text-gray-600">
                 <span class="font-medium">距離:</span> ${shop.distance}km
             </p>` : ''}
-            
+
             <!-- 更新日時 -->
             ${updateTime ? `<p class="text-xs text-gray-500 mt-2">${updateTime}</p>` : ''}
         </div>
@@ -678,7 +678,7 @@ function showShopDialogInline(shop) {
                 updateShopName(newName, secretKey);
             }
         };
-        
+
         nameInput.addEventListener('blur', handleNameUpdate);
         nameInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -689,7 +689,7 @@ function showShopDialogInline(shop) {
     }
 
     dialog.classList.remove('hidden');
-    
+
     // モーダルを開いた時にポップアップを閉じる
     if (currentOpenMarker) {
         try {
@@ -750,7 +750,7 @@ function updateShopStatus(status, secretKey) {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const updateTimeText = `${year}/${month}/${day} ${hours}:${minutes}に更新`;
-            
+
             // 更新日時を表示
             let updateTimeEl = contentEl.querySelector('.text-xs.text-gray-500');
             if (!updateTimeEl) {
@@ -759,9 +759,9 @@ function updateShopStatus(status, secretKey) {
                 contentEl.appendChild(updateTimeEl);
             }
             updateTimeEl.textContent = updateTimeText;
-            
+
             statusSelect.disabled = false;
-            
+
             // 地図上のマーカーも更新（必要に応じて）
             if (typeof inlineMarkers !== 'undefined' && inlineMarkers) {
                 inlineMarkers.forEach(marker => {
@@ -773,7 +773,7 @@ function updateShopStatus(status, secretKey) {
                     }
                 });
             }
-            
+
             // リスト表示のステータスも更新（DOM操作のみ、Ajax不要）
             updateShopListStatus(secretKey, parseInt(status));
         } else {
@@ -839,7 +839,7 @@ function updateShopName(name, secretKey) {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const updateTimeText = `${year}/${month}/${day} ${hours}:${minutes}に更新`;
-            
+
             // 更新日時を表示
             const contentEl = document.getElementById('dialogShopContent');
             if (contentEl) {
@@ -851,9 +851,9 @@ function updateShopName(name, secretKey) {
                 }
                 updateTimeEl.textContent = updateTimeText;
             }
-            
+
             nameInput.disabled = false;
-            
+
             // 地図上のマーカーも更新（必要に応じて）
             if (typeof inlineMarkers !== 'undefined' && inlineMarkers) {
                 inlineMarkers.forEach(marker => {
@@ -905,16 +905,16 @@ function refreshMapWithCurrentLocation() {
         function(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            
+
             // 地図が既に初期化されている場合は、位置を更新
             if (inlineMap) {
                 // 地図の中心を現在位置に移動
                 inlineMap.setView([lat, lng], 16);
-                
+
                 // 既存のマーカーを削除
                 inlineMarkers.forEach(marker => inlineMap.removeLayer(marker));
                 inlineMarkers = [];
-                
+
                 // 現在地マーカーは追加しない（店舗のピンのみ表示）
             } else {
                 // 地図が初期化されていない場合は初期化
@@ -922,11 +922,11 @@ function refreshMapWithCurrentLocation() {
                     console.error('地図初期化エラー:', error);
                 });
             }
-            
+
             // 店舗データを取得して表示
             const baseUrl = window.APP_BASE_URL || '';
             const apiUrl = `${baseUrl}/api/shops/nearby`;
-            
+
             fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}`)
                 .then(response => response.json())
                 .then(data => {
@@ -1011,20 +1011,20 @@ function setupTabsInline() {
 function initializeInline() {
     setupTabsInline();
     setupDialogInline();
-    
+
     // 画面初期表示時に現在位置を自動取得して地図に表示
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
-                
+
                 // 地図を初期化
                 initMapInline(lat, lng).then(() => {
                     // 店舗データを取得して表示
                     const baseUrl = window.APP_BASE_URL || '';
                     const apiUrl = `${baseUrl}/api/shops/nearby`;
-                    
+
                     fetch(`${apiUrl}?latitude=${lat}&longitude=${lng}`)
                         .then(response => response.json())
                         .then(data => {
@@ -1081,7 +1081,7 @@ function closeShopDialog() {
         } catch (e) {
             console.warn('closePopup()でエラー:', e);
         }
-        
+
         try {
             // 方法2: 地図からポップアップを閉じる
             if (inlineMap) {
@@ -1090,7 +1090,7 @@ function closeShopDialog() {
         } catch (e) {
             console.warn('map.closePopup()でエラー:', e);
         }
-        
+
         // 少し遅延させて再度確認（確実に閉じるため）
     setTimeout(() => {
             if (currentOpenMarker) {
@@ -1103,7 +1103,7 @@ function closeShopDialog() {
                 }
             }
         }, 50);
-        
+
         currentOpenMarker = null;
     }
 }
@@ -1113,17 +1113,17 @@ function setupDialogInline() {
     const dialog = document.getElementById('shopDialog');
     const closeBtn = document.getElementById('closeDialogBtn');
     if (!dialog || !closeBtn) return;
-    
+
     closeBtn.addEventListener('click', () => {
         closeShopDialog();
     });
-    
+
     dialog.addEventListener('click', (e) => {
         if (e.target === dialog) {
             closeShopDialog();
         }
     });
-    
+
     // ESCキーでモーダルを閉じる
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
@@ -1220,7 +1220,7 @@ if (document.readyState === 'loading') {
 
 <!-- 地図掲示板投稿モーダル -->
 <div x-data="pinPostModal()" x-init="register()" x-show="open" x-cloak
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[20000]"
+    class="fixed inset-0 bg-gray-500 bg-opacity-40 flex items-center justify-center p-4 z-[20000]"
     @click.self="close()">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
         <div class="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
@@ -1384,7 +1384,7 @@ if (document.readyState === 'loading') {
         <!-- ヘッダー -->
         <div class="flex justify-between items-center p-6 border-b border-gray-200">
             <h3 class="text-2xl font-semibold text-gray-900">店舗を登録</h3>
-            <button id="closeRegisterModalBtn" 
+            <button id="closeRegisterModalBtn"
                     onclick="closeRegisterModal(); return false;"
                     class="text-gray-400 hover:text-gray-600 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1396,14 +1396,14 @@ if (document.readyState === 'loading') {
         <!-- フォーム本体 -->
         <form id="registerShopForm" action="{{ route('shops.register.store') }}" method="POST" class="p-6 space-y-4">
             @csrf
-            
+
             <!-- 業種 -->
             <div>
                 <label for="category" class="block text-sm font-medium text-gray-700 mb-2">
                     業種 <span class="text-red-500">*</span>
                 </label>
-                <select id="category" 
-                        name="category" 
+                <select id="category"
+                        name="category"
                         required
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
                     <option value="">選択してください</option>
@@ -1421,9 +1421,9 @@ if (document.readyState === 'loading') {
                 <label for="shopName" class="block text-sm font-medium text-gray-700 mb-2">
                     店舗名（任意）
                 </label>
-                <input type="text" 
-                       id="shopName" 
-                       name="name" 
+                <input type="text"
+                       id="shopName"
+                       name="name"
                        value="{{ old('name') }}"
                        placeholder="例: 〇〇サロン"
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500">
@@ -1447,12 +1447,12 @@ if (document.readyState === 'loading') {
 
             <!-- フッター -->
             <div class="flex gap-4 pt-4">
-                <button type="button" 
+                <button type="button"
                         onclick="closeRegisterModal(); return false;"
                         class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
                     キャンセル
                 </button>
-                <button type="submit" 
+                <button type="submit"
                         id="submitRegisterBtn"
                         class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
                     登録する
@@ -1469,13 +1469,13 @@ function openRegisterModal() {
     if (modal) {
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden'; // 背景のスクロールを無効化
-        
+
         // 地図ビューが非表示の場合は表示する（モーダル表示時にも地図を表示）
         const mapView = document.getElementById('mapView');
         const listView = document.getElementById('listView');
         const mapTab = document.getElementById('mapTab');
         const listTab = document.getElementById('listTab');
-        
+
         if (mapView && mapView.classList.contains('hidden')) {
             // 地図タブをアクティブにする
             if (mapTab) {
@@ -1494,7 +1494,7 @@ function openRegisterModal() {
                 listView.classList.add('hidden');
                 listView.style.display = 'none';
             }
-            
+
             // 地図のサイズを再計算（少し遅延させて確実に）
             setTimeout(() => {
                 if (typeof inlineMap !== 'undefined' && inlineMap) {
@@ -1663,7 +1663,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // CSRFトークンを取得
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                
+
                 // FormDataを作成
                 const formData = new FormData(form);
 
@@ -2006,6 +2006,52 @@ window.pinBoard = {
         const map = { 0: '空き', 1: '待ち', 2: '満席' };
         return map[value] || '';
     },
+    resolveImageUrl(pin = {}) {
+        const imagePath = pin.image_path || pin.imagePath || null;
+        const rawUrl = pin.image_url || pin.imageUrl || null;
+
+        // Prefer Laravel media endpoint to avoid web-server symlink restrictions.
+        if (imagePath) {
+            return `/media/${String(imagePath).replace(/^\/+/, '')}`;
+        }
+
+        if (!rawUrl) {
+            return null;
+        }
+
+        const value = String(rawUrl).trim();
+        if (!value) {
+            return null;
+        }
+
+        if (value.startsWith('/')) {
+            if (value.startsWith('/storage/')) {
+                return `/media/${value.slice('/storage/'.length)}`;
+            }
+            return value;
+        }
+
+        if (value.startsWith('storage/')) {
+            return `/media/${value.slice('storage/'.length)}`;
+        }
+
+        if (value.startsWith('pins/')) {
+            return `/media/${value}`;
+        }
+
+        if (/^https?:\/\//i.test(value)) {
+            try {
+                const parsed = new URL(value);
+                if (parsed.pathname.startsWith('/storage/')) {
+                    return `/media/${parsed.pathname.slice('/storage/'.length)}${parsed.search}`;
+                }
+            } catch (error) {
+                // Fallback to original value when URL parsing fails.
+            }
+        }
+
+        return value;
+    },
     renderPins() {
         if (!inlineMap) return;
 
@@ -2033,7 +2079,7 @@ window.pinBoard = {
         }[char]));
 
         const tags = pin.tags || [];
-        const imageUrl = pin.imageUrl || pin.image_url;
+        const imageUrl = this.resolveImageUrl(pin);
         const storeName = pin.storeName || pin.store_name;
 
         const tagsHtml = tags && tags.length
@@ -2078,7 +2124,7 @@ window.pinBoard = {
             tags: pin.tags || [],
             latitude: parseFloat(pin.latitude),
             longitude: parseFloat(pin.longitude),
-            imageUrl: pin.image_url || pin.imageUrl || null,
+            imageUrl: this.resolveImageUrl(pin),
                 shopId: pin.shop_id || pin.shopId || null,
             createdAt: pin.created_at || pin.createdAt,
         };
@@ -2095,7 +2141,7 @@ window.pinBoard = {
             this.pins = pins.map(pin => ({
                 ...pin,
                 storeName: pin.store_name || pin.storeName,
-                imageUrl: pin.image_url || pin.imageUrl,
+                imageUrl: this.resolveImageUrl(pin),
                 type: Number(pin.type),
                 status: pin.status !== undefined && pin.status !== null ? Number(pin.status) : null,
             }));

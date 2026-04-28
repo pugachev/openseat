@@ -81,4 +81,23 @@ class PinController extends Controller
             'data' => $pin->fresh(),
         ], 201);
     }
+
+    public function image(string $path)
+    {
+        $normalizedPath = ltrim($path, '/');
+
+        if ($normalizedPath === '' || str_contains($normalizedPath, '..')) {
+            abort(404);
+        }
+
+        $disk = Storage::disk('public');
+
+        if (!$disk->exists($normalizedPath)) {
+            abort(404);
+        }
+
+        return response()->file($disk->path($normalizedPath), [
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
 }

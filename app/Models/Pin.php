@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 class Pin extends Model
 {
@@ -40,7 +39,7 @@ class Pin extends Model
         if (!$this->image_path) {
             return null;
         }
-        return \Storage::disk('public')->url($this->image_path);
+        return '/media/' . ltrim($this->image_path, '/');
     }
 
     public function shop()
