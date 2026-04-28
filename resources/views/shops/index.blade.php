@@ -2138,7 +2138,7 @@ window.pinBoard = {
     },
     addPin(pin) {
         if (!pin) return;
-            const normalized = {
+        const normalized = {
             id: pin.id,
             type: Number(pin.type),
             comment: pin.comment || '',
@@ -2148,9 +2148,14 @@ window.pinBoard = {
             latitude: parseFloat(pin.latitude),
             longitude: parseFloat(pin.longitude),
             imageUrl: this.resolveImageUrl(pin),
-                shopId: pin.shop_id || pin.shopId || null,
+            shopId: pin.shop_id || pin.shopId || null,
             createdAt: pin.created_at || pin.createdAt,
         };
+
+        if (normalized.id !== undefined && normalized.id !== null) {
+            this.pins = this.pins.filter(existing => String(existing.id) !== String(normalized.id));
+        }
+
         this.pins.unshift(normalized);
         this.renderPins();
     },
@@ -2161,13 +2166,28 @@ window.pinBoard = {
             if (!response.ok) return;
             const data = await response.json();
             const pins = Array.isArray(data) ? data : (data.data || []);
-            this.pins = pins.map(pin => ({
+            const fetchedPins = pins.map(pin => ({
                 ...pin,
                 storeName: pin.store_name || pin.storeName,
                 imageUrl: this.resolveImageUrl(pin),
                 type: Number(pin.type),
                 status: pin.status !== undefined && pin.status !== null ? Number(pin.status) : null,
             }));
+
+            const fetchedIds = new Set(
+                fetchedPins
+                    .filter(pin => pin && pin.id !== undefined && pin.id !== null)
+                    .map(pin => String(pin.id))
+            );
+
+            // 先にローカル追加済みで、APIレスポンスに未反映のピンを保持する。
+            const localOnlyPins = this.pins.filter(pin => {
+                if (!pin) return false;
+                if (pin.id === undefined || pin.id === null) return true;
+                return !fetchedIds.has(String(pin.id));
+            });
+
+            this.pins = [...localOnlyPins, ...fetchedPins];
             this.renderPins();
         } catch (error) {
             console.warn('ピンの取得に失敗しました（APIが未実装の可能性）', error);
