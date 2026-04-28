@@ -1377,12 +1377,12 @@ if (document.readyState === 'loading') {
 </div>
 
 <!-- ピン画像拡大ビューア -->
-<div id="pinImageViewer" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4" style="z-index: 11000;" aria-hidden="true">
+<div id="pinImageViewer" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-3 md:p-5" style="z-index: 11000;" aria-hidden="true">
     <button type="button"
         id="pinImageViewerCloseBtn"
         class="absolute top-4 right-4 text-white text-3xl leading-none hover:text-gray-300"
         aria-label="画像を閉じる">&times;</button>
-    <div class="w-full max-w-6xl max-h-[92vh] bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden" style="width: 90%; max-width: 800px; max-height: 88vh;">
         <div class="px-6 py-4 border-b border-gray-200">
             <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
         </div>
@@ -1390,7 +1390,8 @@ if (document.readyState === 'loading') {
             <img id="pinImageViewerImage"
                 src=""
                 alt="拡大画像"
-                class="w-full max-h-[65vh] object-contain rounded-lg bg-black">
+                style="width: 100%; max-height: 55vh; object-fit: contain;"
+                class="rounded-lg bg-black">
         </div>
         <div class="px-6 py-4 border-t border-gray-200 bg-white">
             <p class="text-sm font-medium text-gray-700 mb-1">メッセージ</p>
