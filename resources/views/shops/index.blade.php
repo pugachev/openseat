@@ -25,7 +25,7 @@
         📍 位置情報を更新
     </button>
     <button id="openPinModalBtn"
-            onclick="openPinModal(); return false;"
+            onclick="window.openPinModal?.(); return false;"
             class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-md cursor-pointer">
         📌 地図掲示板に投稿
     </button>
