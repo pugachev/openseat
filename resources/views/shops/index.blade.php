@@ -285,6 +285,15 @@ function createMap(lat, lng) {
         inlineMap = null;
     }
 
+    // Leafletの初期化フラグがDOMに残るケースを吸収する
+    if (mapElement._leaflet_id) {
+        mapElement._leaflet_id = null;
+    }
+
+    // マーカー参照を初期化（古い地図インスタンスへの参照を持たないようにする）
+    inlineMarkers = [];
+    currentOpenMarker = null;
+
     try {
         // console.log('地図を初期化します...');
         // 地図を初期化
@@ -459,7 +468,6 @@ function displayShopsOnMap(shops, userLat, userLng) {
     inlineMarkers = [];
 
     if (shops.length === 0) {
-        alert('近くに店舗が見つかりませんでした');
         // リスト表示も更新
         updateShopList([]);
         return;

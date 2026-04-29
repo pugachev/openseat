@@ -206,10 +206,10 @@ window.updateShopList = function updateShopList(shops) {
     // 店舗カードを生成
     shops.forEach(shop => {
         const statusLabel = shop.status_label || (shop.status === 0 ? '空き' : shop.status === 1 ? '待ち' : '満席');
-        const statusClass = shop.status === 0 
-            ? 'bg-green-100 text-green-800' 
-            : shop.status === 1 
-            ? 'bg-yellow-100 text-yellow-800' 
+        const statusClass = shop.status === 0
+            ? 'bg-green-100 text-green-800'
+            : shop.status === 1
+            ? 'bg-yellow-100 text-yellow-800'
             : 'bg-red-100 text-red-800';
 
         const shopCard = document.createElement('div');
@@ -269,7 +269,11 @@ window.fetchNearbyShops = async function fetchNearbyShops(lat, lng, radius = nul
         markers = [];
 
         if (shops.length === 0) {
-            alert('近くに店舗が見つかりませんでした');
+            const statusEl = document.getElementById('locationStatus');
+            if (statusEl) {
+                statusEl.textContent = '近くに店舗が見つかりませんでした';
+                statusEl.className = 'mt-2 text-sm text-gray-600';
+            }
             // リスト表示も更新
             if (typeof window.updateShopList === 'function') {
                 window.updateShopList([]);

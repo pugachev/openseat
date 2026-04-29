@@ -15,7 +15,7 @@ class ShopController extends Controller
     public function index()
     {
         $shops = Shop::orderBy('name')->get();
-        
+
         return view('shops.index', compact('shops'));
     }
 
@@ -25,7 +25,7 @@ class ShopController extends Controller
     public function edit($secret_key)
     {
         $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
-        
+
         return view('shops.edit', compact('shop'));
     }
 
@@ -35,14 +35,14 @@ class ShopController extends Controller
     public function update(Request $request, $secret_key)
     {
         $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
-        
+
         $request->validate([
             'status' => 'required|integer|in:0,1,2',
         ]);
-        
+
         $shop->status = $request->status;
         $shop->save();
-        
+
         return redirect()
             ->route('shops.edit', ['secret_key' => $secret_key])
             ->with('success', 'ステータスを更新しました');
@@ -56,14 +56,12 @@ class ShopController extends Controller
         $request->validate([
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
-            'radius' => 'nullable|numeric|min:0|max:50', // デフォルト10km
         ]);
 
         $userLat = $request->latitude;
         $userLng = $request->longitude;
-        $radius = $request->radius ?? 1; // デフォルト10km
 
-        // Haversine公式を使用して距離計算
+        // Haversine公式で距離を付与し、距離順で返す（半径による絞り込みは行わない）
         $shops = Shop::whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->get()
@@ -75,22 +73,27 @@ class ShopController extends Controller
                     $shop->longitude
                 );
                 $shop->distance = round($distance, 2);
-                // status_labelを明示的に追加
-                $shop->status_label = $shop->status_label;
                 return $shop;
-            })
-            ->filter(function ($shop) use ($radius) {
-                return $shop->distance <= $radius;
             })
             ->sortBy('distance')
             ->values();
 
-        // category, updated_at, secret_keyも含めて返す
+        // 返却項目を明示してAPIレスポンスを安定化
         return response()->json($shops->map(function ($shop) {
-            $shop->category = $shop->category;
-            $shop->updated_at = $shop->updated_at ? $shop->updated_at->toDateTimeString() : null;
-            $shop->secret_key = $shop->secret_key;
-            return $shop;
+            return [
+                'id' => $shop->id,
+                'name' => $shop->name,
+                'category' => $shop->category,
+                'status' => $shop->status,
+                'status_label' => $shop->status_label,
+                'address' => $shop->address,
+                'phone' => $shop->phone,
+                'latitude' => $shop->latitude,
+                'longitude' => $shop->longitude,
+                'distance' => $shop->distance,
+                'updated_at' => $shop->updated_at ? $shop->updated_at->toDateTimeString() : null,
+                'secret_key' => $shop->secret_key,
+            ];
         }));
     }
 
@@ -101,14 +104,14 @@ class ShopController extends Controller
     {
         try {
             $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
-            
+
             $request->validate([
                 'status' => 'required|integer|in:0,1,2',
             ]);
-            
+
             $shop->status = $request->status;
             $shop->save();
-            
+
             if ($request->expectsJson()) {
                 $updatedShop = $shop->fresh();
                 return response()->json([
@@ -125,7 +128,7 @@ class ShopController extends Controller
                     ],
                 ]);
             }
-            
+
             return redirect()
                 ->route('shops.edit', ['secret_key' => $secret_key])
                 ->with('success', 'ステータスを更新しました');
@@ -175,14 +178,14 @@ class ShopController extends Controller
     {
         try {
             $shop = Shop::where('secret_key', $secret_key)->firstOrFail();
-            
+
             $request->validate([
                 'name' => 'nullable|string|max:255',
             ]);
-            
+
             $shop->name = $request->name;
             $shop->save();
-            
+
             if ($request->expectsJson()) {
                 $updatedShop = $shop->fresh();
                 return response()->json([
@@ -199,7 +202,7 @@ class ShopController extends Controller
                     ],
                 ]);
             }
-            
+
             return redirect()
                 ->route('shops.edit', ['secret_key' => $secret_key])
                 ->with('success', '店舗名を更新しました');
@@ -336,7 +339,7 @@ class ShopController extends Controller
                 if (str_contains($e->getMessage(), 'category')) {
                     $message = 'データベースにカラムが存在しません。マイグレーションを実行してください: php artisan migrate';
                 }
-                
+
                 return response()->json([
                     'success' => false,
                     'message' => $message,
