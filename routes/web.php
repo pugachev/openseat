@@ -17,6 +17,7 @@ Route::post('/api/shops/{secret_key}/name', [ShopController::class, 'updateName'
 // ピン掲示板 API
 Route::get('/api/pins', [PinController::class, 'index']);
 Route::post('/api/pins', [PinController::class, 'store']);
+Route::get('/api/pins/download', [PinController::class, 'download']);
 Route::get('/media/{path}', [PinController::class, 'image'])
     ->where('path', '.*')
     ->name('pins.image');

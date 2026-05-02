@@ -82,6 +82,48 @@ class PinController extends Controller
         ], 201);
     }
 
+    public function download(Request $request)
+    {
+        $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $startDate = $request->input('start_date');
+        $endDate   = $request->input('end_date');
+
+        $pins = Pin::whereNotNull('image_path')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->get();
+
+        if ($pins->isEmpty()) {
+            return response()->json(['message' => '該当日に画像がありません'], 404);
+        }
+
+        $disk    = Storage::disk('public');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'pins_');
+
+        $zip = new \ZipArchive();
+        $zip->open($tmpFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        foreach ($pins as $pin) {
+            $normalizedPath = ltrim($pin->image_path, '/');
+            if ($disk->exists($normalizedPath)) {
+                $zipFilename = $pin->created_at->format('Ymd_His') . '_' . basename($normalizedPath);
+                $zip->addFile($disk->path($normalizedPath), $zipFilename);
+            }
+        }
+
+        $zip->close();
+
+        $zipName = 'pins_' . str_replace('-', '', $startDate) . '_' . str_replace('-', '', $endDate) . '.zip';
+
+        return response()->download($tmpFile, $zipName, [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend(true);
+    }
+
     public function image(string $path)
     {
         $normalizedPath = ltrim($path, '/');

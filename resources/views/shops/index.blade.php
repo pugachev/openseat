@@ -38,6 +38,79 @@
     <p id="locationStatus" class="mt-2 text-sm text-gray-600"></p>
     <p id="debugInfo" class="mt-2 text-xs text-gray-400"></p>
 
+<!-- 画像ダウンロードエリア -->
+<div class="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+    <h3 class="text-sm font-medium text-gray-700 mb-3">📥 投稿画像をダウンロード</h3>
+    <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">開始日</label>
+            <input type="date" id="downloadStartDate"
+                   class="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <span class="text-gray-400">〜</span>
+        <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-600">終了日</label>
+            <input type="date" id="downloadEndDate"
+                   class="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <button onclick="downloadPinImages()"
+                class="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+            📥 ダウンロード
+        </button>
+        <span id="downloadStatus" class="text-sm"></span>
+    </div>
+</div>
+
+<script>
+async function downloadPinImages() {
+    const startDate = document.getElementById('downloadStartDate').value;
+    const endDate   = document.getElementById('downloadEndDate').value;
+    const statusEl  = document.getElementById('downloadStatus');
+
+    if (!startDate || !endDate) {
+        statusEl.textContent = '開始日と終了日を入力してください';
+        statusEl.className = 'text-sm text-red-600';
+        return;
+    }
+
+    statusEl.textContent = '取得中...';
+    statusEl.className = 'text-sm text-blue-600';
+
+    const baseUrl = window.APP_BASE_URL || '';
+    const url = `${baseUrl}/api/pins/download?start_date=${startDate}&end_date=${endDate}`;
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            },
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            const cd = response.headers.get('Content-Disposition');
+            a.download = cd?.match(/filename="(.+)"/)?.[1]
+                ?? `pins_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            statusEl.textContent = '';
+            statusEl.className = 'text-sm';
+        } else {
+            const data = await response.json();
+            statusEl.textContent = data.message || 'エラーが発生しました';
+            statusEl.className = 'text-sm text-red-600';
+        }
+    } catch (error) {
+        statusEl.textContent = 'エラーが発生しました';
+        statusEl.className = 'text-sm text-red-600';
+    }
+}
+</script>
+
 <script>
 // インラインで位置情報更新を処理（JavaScriptが読み込まれていない場合のフォールバック）
 function handleLocationUpdate(event) {
