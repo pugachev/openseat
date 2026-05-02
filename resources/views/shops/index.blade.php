@@ -297,7 +297,23 @@ function createMap(lat, lng) {
     try {
         // console.log('地図を初期化します...');
         // 地図を初期化
-        inlineMap = L.map('map').setView([lat, lng], 16);
+        inlineMap = L.map('map', {
+            dragging: true,
+            touchZoom: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            boxZoom: true,
+            keyboard: true,
+            tap: true,
+        }).setView([lat, lng], 16);
+
+        // 他スクリプトと競合しても操作不能にならないよう、操作系を明示的に有効化
+        inlineMap.dragging.enable();
+        inlineMap.touchZoom.enable();
+        inlineMap.scrollWheelZoom.enable();
+        inlineMap.doubleClickZoom.enable();
+        inlineMap.boxZoom.enable();
+        inlineMap.keyboard.enable();
         // console.log('地図オブジェクトが作成されました:', inlineMap);
 
         // タイルレイヤーを追加
@@ -1180,6 +1196,7 @@ if (document.readyState === 'loading') {
 /* Leafletがモーダルより前面に出ないように調整 */
 .leaflet-container {
     z-index: 0 !important;
+    touch-action: none;
 }
 </style>
 <div class="mb-6 border-b border-gray-200">

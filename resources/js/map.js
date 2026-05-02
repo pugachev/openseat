@@ -47,7 +47,23 @@ function initMap(lat = 35.6812, lng = 139.7671) {
         map.remove();
     }
 
-    map = L.map('map').setView([lat, lng], 13);
+    map = L.map('map', {
+        dragging: true,
+        touchZoom: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        tap: true,
+    }).setView([lat, lng], 13);
+
+    // 他スクリプトと競合しても操作不能にならないよう、操作系を明示的に有効化
+    map.dragging.enable();
+    map.touchZoom.enable();
+    map.scrollWheelZoom.enable();
+    map.doubleClickZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
