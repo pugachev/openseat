@@ -119,7 +119,7 @@ function handleLocationUpdate(event) {
         event.stopPropagation();
     }
 
-    // console.log('handleLocationUpdate: ボタンがクリックされました');
+    location.reload();
 
     const statusEl = document.getElementById('locationStatus');
     const debugEl = document.getElementById('debugInfo');
