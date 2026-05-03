@@ -4,6 +4,205 @@
 
 理容室・美容室向け空き状況共有アプリです。Laravel Sail (Docker) で動作します。
 
+## Windows (RyzenAI / WSL2 + Docker) セットアップ
+
+### 1. BIOS設定 — AMD仮想化の有効化
+
+RyzenプロセッサーではBIOSでSVM Mode (AMD-V) を有効にする必要があります。
+
+1. PC起動時に `Del` または `F2` を押してBIOS/UEFIへ入る
+2. **Advanced** または **CPU Configuration** メニューを開く
+3. **SVM Mode** (または **AMD-V**) を `Enabled` に変更
+4. 保存して再起動
+
+### 2. WSL2のインストール
+
+PowerShell を**管理者権限**で起動して実行:
+
+```powershell
+wsl --install
+wsl --set-default-version 2
+```
+
+インストール後、PC を再起動してから Ubuntu を初回起動し、Linuxユーザー名とパスワードを設定する。
+
+WSL2が有効か確認:
+
+```powershell
+wsl -l -v
+# STATE が "Running"、VERSION が "2" であることを確認
+```
+
+### 3. Docker Desktopのインストールと設定
+
+1. Docker Desktop for Windows をインストール
+2. インストール後、**Settings > General** で `Use the WSL 2 based engine` が ON になっていることを確認
+3. **Settings > Resources > WSL Integration** で使用するディストリビューション（Ubuntu）を有効化
+4. Apply & Restart
+
+### 4. WSL2 Ubuntu ターミナルを開く
+
+以降の作業はすべて **WSL2 の Ubuntu ターミナル内**で行う。
+
+> **重要**: リポジトリは必ず WSL2 ファイルシステム内 (`~/`) にクローンすること。
+> `/mnt/c/` 以下（Windows ドライブ）に置くとファイルI/Oが極端に遅くなり、Sail が正常に動作しません。
+
+### 5. 必要パッケージのインストール (WSL2 Ubuntu内)
+
+**方法A: WSL2にPHP + Composerをインストールする**
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl php8.4 php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip unzip
+```
+
+Composerのインストール:
+
+```bash
+curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/local/bin/composer
+```
+
+**方法B: Docker経由でComposerを実行する（PHP不要）**
+
+WSL2にPHPをインストールせず、DockerコンテナでComposerだけを実行する方法です。
+必要なのは `git` のみ:
+
+```bash
+sudo apt update && sudo apt install -y git
+```
+
+### 6. リポジトリのクローンとセットアップ
+
+```bash
+cd ~
+git clone <リポジトリURL> openseat
+cd openseat
+```
+
+Windowsとのgit行末コード問題を防ぐため、クローン前に設定しておく:
+
+```bash
+git config --global core.autocrlf false
+```
+
+### 7. 環境ファイルの設定
+
+```bash
+cp .env.example .env
+```
+
+`.env` を編集してDB接続をMySQLに変更 (`.env.example` のデフォルトは SQLite):
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=open_seat
+DB_USERNAME=sail
+DB_PASSWORD=password
+```
+
+さらに WSL2 のユーザーIDを確認して追記:
+
+```bash
+id -u   # 通常 1000
+id -g   # 通常 1000
+```
+
+`.env` に追記:
+
+```dotenv
+WWWUSER=1000
+WWWGROUP=1000
+```
+
+### 8. Sailの初回起動
+
+**方法Aの場合（WSL2にComposerをインストール済み）:**
+
+```bash
+composer install
+./vendor/bin/sail up -d
+```
+
+**方法Bの場合（DockerでComposerを実行）:**
+
+以下の1コマンドで `vendor/` を生成してから Sail を起動する:
+
+```bash
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -v "$(pwd):/var/www/html" \
+  -w /var/www/html \
+  laravelsail/php84-composer:latest \
+  composer install --ignore-platform-reqs
+./vendor/bin/sail up -d
+```
+
+起動確認:
+
+```bash
+./vendor/bin/sail ps
+```
+
+### 9. 初期化コマンド
+
+```bash
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate --seed
+./vendor/bin/sail artisan storage:link
+```
+
+フロントエンド:
+
+```bash
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev
+```
+
+### 10. アクセス確認
+
+| サービス | URL |
+|---|---|
+| アプリ | http://localhost |
+| phpMyAdmin | http://localhost:8080 |
+| Vite (開発) | http://localhost:5173 |
+
+### Windows特有のトラブルシューティング
+
+**ポート80が競合する場合**
+
+IIS や他サービスがポート80を使用している場合は `.env` でポートを変更:
+
+```dotenv
+APP_PORT=8000
+```
+
+アクセスは `http://localhost:8000` になる。
+
+**`sail` コマンドを短縮したい場合**
+
+WSL2の `~/.bashrc` または `~/.zshrc` に追記:
+
+```bash
+alias sail='[ -f sail ] && sh sail || sh vendor/bin/sail'
+```
+
+以降は `sail up -d` のように省略して実行できる。
+
+**Docker Desktop が起動しない / WSL2 接続エラー**
+
+```powershell
+# PowerShell (管理者) で実行
+wsl --shutdown
+wsl
+```
+
+その後 Docker Desktop を再起動する。
+
+---
+
 ## Quick Start (初回セットアップ)
 
 1. 環境ファイルを作成
