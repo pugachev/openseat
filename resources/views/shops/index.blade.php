@@ -1450,6 +1450,17 @@ if (document.readyState === 'loading') {
                                   class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400"></textarea>
                     </div>
 
+                    <!-- お知らせする (今の風景) -->
+                    <div x-show="activeType === 3" class="space-y-2 border border-gray-100 rounded-xl p-4 bg-gray-50">
+                        <p class="text-sm font-semibold text-gray-700">📩 お知らせする</p>
+                        <input type="email"
+                               x-model="form.notifyEmail"
+                               placeholder="メールアドレス（任意）"
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-sm bg-white"
+                               autocomplete="email">
+                        <p class="text-xs text-gray-400">入力したアドレスに投稿した場所のOpenStreetMapリンクをお知らせします</p>
+                    </div>
+
                     <div class="flex items-center justify-between text-sm text-gray-500">
                         <span class="flex items-center gap-2"><span>📍</span><span x-text="locationLabel"></span></span>
                         <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation()">位置を更新</button>
@@ -1878,6 +1889,7 @@ function pinPostModal() {
             imagePreview: null,
             imageFile: null,
             shopId: null,
+            notifyEmail: '',
         },
         currentType: { label: '', emoji: '' },
         nearbyShops: [],
@@ -1893,16 +1905,14 @@ function pinPostModal() {
             };
         },
         show() {
-            this.view = 'menu';
-            this.activeType = null;
-            this.currentType = { label: '', emoji: '' };
-            this.resetForType(null);
             this.open = true;
             this.ensureLocation();
+            this.openType(3);
         },
         close() {
             this.open = false;
             this.loading = false;
+            this.form.notifyEmail = '';
         },
         backToMenu() {
             this.view = 'menu';
@@ -2074,6 +2084,7 @@ function pinPostModal() {
                 this.form.tags.forEach(tag => fd.append('tags[]', tag));
             }
             if (this.form.shopId) fd.append('shop_id', this.form.shopId);
+            if (this.form.notifyEmail) fd.append('notify_email', this.form.notifyEmail.trim());
             if (this.form.imageFile) {
                 fd.append('image', this.form.imageFile);
             }
@@ -2118,6 +2129,7 @@ function pinPostModal() {
 window.pinBoard = {
     pins: [],
     markers: [],
+    pinMarkers: {},
     emojiByType: {
         1: '👋',
         2: '🍽️',
@@ -2179,6 +2191,7 @@ window.pinBoard = {
 
         this.markers.forEach(marker => inlineMap.removeLayer(marker));
         this.markers = [];
+        this.pinMarkers = {};
 
         this.pins.forEach(pin => {
             if (!pin.latitude || !pin.longitude) return;
@@ -2189,6 +2202,9 @@ window.pinBoard = {
             const marker = L.marker([pin.latitude, pin.longitude], { icon }).addTo(inlineMap);
             marker.bindPopup(popupHtml);
             this.markers.push(marker);
+            if (pin.id !== undefined && pin.id !== null) {
+                this.pinMarkers[String(pin.id)] = marker;
+            }
         });
     },
     buildPopup(pin) {
@@ -2300,6 +2316,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupPinImageViewer();
+
+    // ?pin= パラメータでピンにフォーカス
+    const pinIdFromUrl = new URLSearchParams(window.location.search).get('pin');
+    if (pinIdFromUrl) {
+        focusPinById(pinIdFromUrl);
+    }
 });
 
 function openPinImageViewer(src, altText = '拡大画像', message = '') {
@@ -2375,6 +2397,34 @@ function createEmojiIcon(emoji) {
         iconSize: [36, 36],
         iconAnchor: [18, 36],
     });
+}
+
+// ?pin= URL パラメータで該当ピンにフォーカスする
+async function focusPinById(pinId) {
+    // 地図の初期化を最大 6 秒待つ
+    let waited = 0;
+    while (!inlineMap && waited < 6000) {
+        await new Promise(r => setTimeout(r, 300));
+        waited += 300;
+    }
+    if (!inlineMap) return;
+
+    // ピンデータのロードを最大 4 秒待つ
+    waited = 0;
+    while (window.pinBoard.pins.length === 0 && waited < 4000) {
+        await new Promise(r => setTimeout(r, 300));
+        waited += 300;
+    }
+
+    const pin = window.pinBoard.pins.find(p => String(p.id) === String(pinId));
+    if (!pin || !pin.latitude || !pin.longitude) return;
+
+    inlineMap.flyTo([pin.latitude, pin.longitude], 17, { animate: true, duration: 1 });
+
+    const marker = window.pinBoard.pinMarkers && window.pinBoard.pinMarkers[String(pinId)];
+    if (marker) {
+        setTimeout(() => marker.openPopup(), 1100);
+    }
 }
 </script>
 @endsection

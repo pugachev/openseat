@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\PinNotificationMail;
 use App\Models\Pin;
 use App\Models\Shop;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -34,6 +37,7 @@ class PinController extends Controller
             'tags.*' => ['string', 'max:50'],
             'image' => ['nullable', 'image', 'max:5120'], // 5MB
             'shop_id' => ['nullable', 'integer', 'exists:shops,id'],
+            'notify_email' => ['nullable', 'email', 'max:255'],
         ]);
 
         $validator->after(function ($validator) use ($request) {
@@ -75,6 +79,18 @@ class PinController extends Controller
         }
 
         $pin->save();
+
+        if (!empty($data['notify_email'])) {
+            try {
+                $pinUrl = rtrim(config('app.url'), '/') . '/?pin=' . $pin->id;
+                Mail::to($data['notify_email'])->send(new PinNotificationMail($pin, $pinUrl));
+            } catch (\Throwable $e) {
+                Log::warning('ピン通知メール送信失敗', [
+                    'pin_id' => $pin->id,
+                    'error'  => $e->getMessage(),
+                ]);
+            }
+        }
 
         return response()->json([
             'success' => true,

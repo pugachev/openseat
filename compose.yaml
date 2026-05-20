@@ -69,6 +69,13 @@ services:
             - mysql
         volumes:
             - phpmyadmin-session:/tmp
+    mailpit:
+        image: 'axllent/mailpit:latest'
+        ports:
+            - '${FORWARD_MAILPIT_PORT:-8025}:8025'
+            - '${FORWARD_MAILPIT_SMTP_PORT:-1025}:1025'
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge
