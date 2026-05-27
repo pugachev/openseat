@@ -483,16 +483,8 @@ function initializeMap() {
         console.error('Map.js: 位置情報更新ボタンが見つかりません');
     }
 
-    // タブ切り替え
-    setupTabs();
-
-    // ダイアログ
-    setupDialog();
-
-    // 地図を初期化（デフォルトは東京、初期表示が地図タブなので必ず初期化）
-    if (document.getElementById('map')) {
-        initMap();
-    }
+    // タブ切り替えとダイアログはブレード側の initializeInline() が担当するため、
+    // map.js では重複登録しない（setupTabs/setupDialog は呼ばない）
 }
 
 // DOMContentLoadedイベントを待つ
