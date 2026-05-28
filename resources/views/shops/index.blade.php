@@ -1380,7 +1380,7 @@ if (document.readyState === 'loading') {
                                     <p class="text-xs text-gray-400">カメラ / ファイルを起動します</p>
                                 </div>
                             </template>
-                            <input type="file" x-ref="pinFileInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange">
+                            <input type="file" x-ref="pinFileInput" accept="image/*" class="hidden" @change="onFileChange">
                         </div>
                         <input type="text"
                                x-model="form.comment"
@@ -1463,7 +1463,7 @@ if (document.readyState === 'loading') {
 
                     <div class="flex items-center justify-between text-sm text-gray-500">
                         <span class="flex items-center gap-2"><span>📍</span><span x-text="locationLabel"></span></span>
-                        <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation()">位置を更新</button>
+                        <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation(true)">位置を更新</button>
                     </div>
                 </div>
             </template>
@@ -1980,30 +1980,29 @@ function pinPostModal() {
         selectStatus(value) {
             this.form.status = value;
         },
-        async ensureLocation() {
-            if (this.form.latitude && this.form.longitude) {
+        async ensureLocation(forceRefresh = false) {
+            if (!forceRefresh && this.form.latitude && this.form.longitude) {
                 this.locationLabel = `緯度: ${parseFloat(this.form.latitude).toFixed(5)}, 経度: ${parseFloat(this.form.longitude).toFixed(5)}`;
                 return;
             }
 
+            if (!navigator.geolocation) {
+                this.locationLabel = '位置情報がサポートされていません';
+                return;
+            }
+
             try {
-                if (typeof window.getCurrentLocation === 'function') {
-                    const loc = await window.getCurrentLocation();
-                    if (loc) {
-                        this.form.latitude = loc.lat;
-                        this.form.longitude = loc.lng;
-                    }
-                } else if (navigator.geolocation) {
-                    const pos = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0,
-                        });
+                // maximumAge:30000 でカメラ撮影後の復帰時にキャッシュ済み位置情報を利用し
+                // Android でバックグラウンド移行による GPS 中断を回避する
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 6000,
+                        maximumAge: 30000,
                     });
-                    this.form.latitude = pos.coords.latitude;
-                    this.form.longitude = pos.coords.longitude;
-                }
+                });
+                this.form.latitude = pos.coords.latitude;
+                this.form.longitude = pos.coords.longitude;
             } catch (error) {
                 console.warn('位置情報の取得に失敗しました', error);
             }
