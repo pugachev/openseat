@@ -13,8 +13,8 @@
     // console.log('スクリプトが読み込まれました');
 </script>
 <div class="mb-6">
-    <h2 class="text-3xl font-bold text-gray-900 mb-2">空き状況を確認</h2>
-    <p class="text-gray-600">現在の混雑状況を確認できます</p>
+    <h2 class="text-3xl font-bold text-gray-900 mb-2">いまの場所を記録しよう</h2>
+    <p class="text-gray-600">いまの場所をメールで知らせることもできます</p>
 </div>
 
 <!-- ボタンエリア -->
