@@ -175,22 +175,9 @@ function handleLocationUpdate(event) {
                     statusEl.className = 'mt-2 text-sm text-green-600';
 
                     // 地図タブは既にアクティブのはず（初期表示が地図タブなので）
-                    const mapTab = document.getElementById('mapTab');
-                    const listTab = document.getElementById('listTab');
-                    const listView = document.getElementById('listView');
                     const mapView = document.getElementById('mapView');
 
-                    if (mapTab && mapView) {
-                        // 地図タブをアクティブにする（既にアクティブの場合もある）
-                        mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-                        mapTab.classList.remove('border-transparent', 'text-gray-500');
-                        if (listTab) {
-                            listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                            listTab.classList.add('border-transparent', 'text-gray-500');
-                        }
-                        if (listView) {
-                            listView.classList.add('hidden');
-                        }
+                    if (mapView) {
                         mapView.classList.remove('hidden');
 
                         // 地図要素が表示されるまで少し待つ
@@ -1044,64 +1031,17 @@ function refreshMapWithCurrentLocation() {
     );
 }
 
-// タブ切り替え機能
+// 地図表示の初期化
 function setupTabsInline() {
-    const listTab = document.getElementById('listTab');
-    const mapTab = document.getElementById('mapTab');
-    const listView = document.getElementById('listView');
     const mapView = document.getElementById('mapView');
 
-    if (!listTab || !mapTab || !listView || !mapView) {
-        console.error('タブ要素が見つかりません');
+    if (!mapView) {
+        console.error('地図要素が見つかりません');
         return;
     }
 
-    // 初期状態を設定（地図タブがアクティブ）
-    mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-    mapTab.classList.remove('border-transparent', 'text-gray-500');
-    listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-    listTab.classList.add('border-transparent', 'text-gray-500');
-    listView.classList.add('hidden');
     mapView.classList.remove('hidden');
-
-    listTab.addEventListener('click', () => {
-        // console.log('リストタブがクリックされました');
-        listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-        listTab.classList.remove('border-transparent', 'text-gray-500');
-        mapTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-        mapTab.classList.add('border-transparent', 'text-gray-500');
-        listView.classList.remove('hidden');
-        mapView.classList.add('hidden');
-        // 地図を確実に非表示にする
-        mapView.style.display = 'none';
-        listView.style.display = 'block';
-
-        // 開いているダイアログを閉じる
-        const dialog = document.getElementById('shopDialog');
-        if (dialog && !dialog.classList.contains('hidden')) {
-            dialog.classList.add('hidden');
-        }
-    });
-
-    mapTab.addEventListener('click', () => {
-        // console.log('地図タブがクリックされました'); // デバッグ用
-        mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-        mapTab.classList.remove('border-transparent', 'text-gray-500');
-        listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-        listTab.classList.add('border-transparent', 'text-gray-500');
-        listView.classList.add('hidden');
-        mapView.classList.remove('hidden');
-        // リストを確実に非表示にする
-        listView.style.display = 'none';
-        mapView.style.display = 'block';
-
-        // 地図のサイズを再計算
-        if (inlineMap) {
-            setTimeout(() => {
-                inlineMap.invalidateSize();
-            }, 100);
-        }
-    });
+    mapView.style.display = 'block';
 }
 
 // ページ読み込み時にタブ切り替えとダイアログを設定
@@ -1272,29 +1212,9 @@ if (document.readyState === 'loading') {
     touch-action: none;
 }
 </style>
-<div class="mb-6 border-b border-gray-200">
-    <nav class="flex space-x-8">
-        <button id="mapTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
-            地図表示
-        </button>
-        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
-            リスト表示
-        </button>
-    </nav>
-</div>
-
 <!-- 地図表示エリア -->
 <div id="mapView" class="tab-content">
     <div id="map" class="w-full h-[600px] rounded-lg shadow-md border border-gray-200"></div>
-</div>
-
-<!-- リスト表示エリア -->
-<div id="listView" class="tab-content hidden">
-    <div id="shopListContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="text-center py-12 col-span-full">
-            <p class="text-gray-500">位置情報を更新すると、近くの店舗が表示されます</p>
-        </div>
-    </div>
 </div>
 
 <!-- 店舗情報ダイアログ -->
@@ -1605,28 +1525,11 @@ function openRegisterModal() {
 
         // 地図ビューが非表示の場合は表示する（モーダル表示時にも地図を表示）
         const mapView = document.getElementById('mapView');
-        const listView = document.getElementById('listView');
-        const mapTab = document.getElementById('mapTab');
-        const listTab = document.getElementById('listTab');
 
         if (mapView && mapView.classList.contains('hidden')) {
-            // 地図タブをアクティブにする
-            if (mapTab) {
-                mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-                mapTab.classList.remove('border-transparent', 'text-gray-500');
-            }
-            if (listTab) {
-                listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                listTab.classList.add('border-transparent', 'text-gray-500');
-            }
             // 地図ビューを表示
             mapView.classList.remove('hidden');
             mapView.style.display = 'block';
-            // リストビューを非表示
-            if (listView) {
-                listView.classList.add('hidden');
-                listView.style.display = 'none';
-            }
 
             // 地図のサイズを再計算（少し遅延させて確実に）
             setTimeout(() => {
