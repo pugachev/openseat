@@ -108,9 +108,15 @@ class PinController extends Controller
         $startDate = $request->input('start_date');
         $endDate   = $request->input('end_date');
 
+        // UIで入力される日付はJST基準のため、UTCに変換して範囲検索する
+        // (DBのcreated_atはUTC保存のため、whereDate()をそのまま使うと日付がズレる)
+        $startUtc = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate, 'Asia/Tokyo')
+            ->startOfDay()->utc();
+        $endUtc   = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate, 'Asia/Tokyo')
+            ->endOfDay()->utc();
+
         $pins = Pin::whereNotNull('image_path')
-            ->whereDate('created_at', '>=', $startDate)
-            ->whereDate('created_at', '<=', $endDate)
+            ->whereBetween('created_at', [$startUtc, $endUtc])
             ->get();
 
         if ($pins->isEmpty()) {
@@ -126,7 +132,8 @@ class PinController extends Controller
         foreach ($pins as $pin) {
             $normalizedPath = ltrim($pin->image_path, '/');
             if ($disk->exists($normalizedPath)) {
-                $zipFilename = $pin->created_at->format('Ymd_His') . '_' . basename($normalizedPath);
+                $jstTime = $pin->created_at->setTimezone('Asia/Tokyo');
+                $zipFilename = $jstTime->format('Ymd_His') . '_' . basename($normalizedPath);
                 $zip->addFile($disk->path($normalizedPath), $zipFilename);
             }
         }
