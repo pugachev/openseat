@@ -409,6 +409,13 @@ function createMap(lat, lng) {
             }
         }, 300);
 
+        // iOS Chrome 向けに追加で再計算（タイルが上部に描画されないケースの対策）
+        setTimeout(() => {
+            if (inlineMap) {
+                inlineMap.invalidateSize();
+            }
+        }, 1000);
+
         // console.log('createMap完了');
     } catch (error) {
         console.error('地図作成エラー:', error);
