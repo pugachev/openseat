@@ -57,6 +57,7 @@
                 class="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors font-medium">
             📥 ダウンロード
         </button>
+        <span id="pinCountDisplay" class="text-sm text-gray-600">現在の登録数：{{ $pinCount }}件</span>
         <span id="downloadStatus" class="text-sm"></span>
     </div>
 </div>
@@ -2012,6 +2013,12 @@ function pinPostModal() {
                 const pin = json.data || json.pin || json;
                 if (window.pinBoard && typeof window.pinBoard.addPin === 'function') {
                     window.pinBoard.addPin(pin);
+                }
+
+                const countEl = document.getElementById('pinCountDisplay');
+                if (countEl) {
+                    const current = parseInt(countEl.textContent.match(/\d+/)?.[0] ?? '0', 10);
+                    countEl.textContent = `現在の登録数：${current + 1}件`;
                 }
 
                 this.loading = false;
