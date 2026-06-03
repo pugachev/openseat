@@ -1412,8 +1412,9 @@ if (document.readyState === 'loading') {
                     <div class="flex flex-col sm:flex-row gap-3">
                         <button type="button"
                                 @click="shareToX"
-                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-gray-900 text-white hover:bg-black transition">
-                            Xで共有
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-gray-900 text-white hover:bg-black transition shadow-md border border-gray-900"
+                                style="background-color:#111827 !important; color:#ffffff !important;">
+                            Xで共有する
                         </button>
                         <button type="button"
                                 @click="finishAfterSubmit"
