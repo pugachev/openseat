@@ -1252,11 +1252,11 @@ if (document.readyState === 'loading') {
         <div class="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
             <div>
                 <p class="text-sm text-amber-600 font-semibold">地図掲示板</p>
-                <h3 class="text-2xl font-bold text-gray-900" x-text="view === 'menu' ? '今の状況をシェア' : (currentType.emoji + ' ' + currentType.label)"></h3>
+                <h3 class="text-2xl font-bold text-gray-900" x-text="view === 'menu' ? '今の状況をシェア' : (view === 'success' ? '投稿完了' : (currentType.emoji + ' ' + currentType.label))"></h3>
             </div>
             <div class="flex items-center gap-2">
                 <button x-show="view === 'form'" @click="backToMenu" class="text-gray-500 hover:text-gray-700 text-sm font-semibold">一覧に戻る</button>
-                <button @click="close()" class="text-gray-400 hover:text-gray-600">
+                <button @click="view === 'success' ? finishAfterSubmit() : close()" class="text-gray-400 hover:text-gray-600">
                     <span class="sr-only">閉じる</span>
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -1392,6 +1392,34 @@ if (document.readyState === 'loading') {
                     <div class="flex items-center justify-between text-sm text-gray-500">
                         <span class="flex items-center gap-2"><span>📍</span><span x-text="locationLabel"></span></span>
                         <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation(true)">位置を更新</button>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="view === 'success'">
+                <div class="space-y-5 py-6" x-cloak>
+                    <div class="text-center space-y-2">
+                        <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-2xl">✓</div>
+                        <h4 class="text-xl font-bold text-gray-900">ピンを投稿しました</h4>
+                        <p class="text-sm text-gray-500">必要に応じて、あなたのXアカウントでこの場所を共有できます。</p>
+                    </div>
+
+                    <div class="border border-gray-200 rounded-xl bg-gray-50 p-4 space-y-3">
+                        <p class="text-sm font-semibold text-gray-700">共有内容</p>
+                        <p class="text-sm text-gray-700 whitespace-pre-line break-words" x-text="shareText"></p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="button"
+                                @click="shareToX"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-gray-900 text-white hover:bg-black transition">
+                            Xで共有
+                        </button>
+                        <button type="button"
+                                @click="finishAfterSubmit"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
+                            閉じる
+                        </button>
                     </div>
                 </div>
             </template>
@@ -1802,6 +1830,8 @@ function pinPostModal() {
             shopId: null,
             notifyEmail: '',
         },
+        shareText: '',
+        shareUrl: '',
         currentType: { label: '', emoji: '' },
         nearbyShops: [],
         nearbyLoading: false,
@@ -1824,6 +1854,8 @@ function pinPostModal() {
             this.open = false;
             this.loading = false;
             this.form.notifyEmail = '';
+            this.shareText = '';
+            this.shareUrl = '';
         },
         backToMenu() {
             this.view = 'menu';
@@ -1890,6 +1922,41 @@ function pinPostModal() {
         },
         selectStatus(value) {
             this.form.status = value;
+        },
+        buildShareText(pin) {
+            const baseUrl = window.APP_BASE_URL || window.location.origin;
+            const appUrl = `${baseUrl.replace(/\/$/, '')}/?pin=${encodeURIComponent(pin.id)}`;
+            const lat = parseFloat(pin.latitude);
+            const lng = parseFloat(pin.longitude);
+            const osmUrl = Number.isFinite(lat) && Number.isFinite(lng)
+                ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`
+                : '';
+            const type = this.types.find(item => Number(item.id) === Number(pin.type));
+            const lines = [
+                'OpenSeatにピンを投稿しました',
+                '',
+                type ? `${type.emoji} ${type.label}` : '',
+                pin.comment ? String(pin.comment).trim() : '',
+                osmUrl ? `地図で見る: ${osmUrl}` : '',
+                `投稿を見る: ${appUrl}`,
+            ];
+
+            return lines.filter(line => line !== '').join('\n');
+        },
+        showSharePrompt(pin) {
+            this.shareText = this.buildShareText(pin);
+            this.shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(this.shareText)}`;
+            this.view = 'success';
+        },
+        shareToX() {
+            if (!this.shareUrl) return;
+            window.open(this.shareUrl, '_blank', 'noopener,noreferrer');
+        },
+        finishAfterSubmit() {
+            const submittedType = this.activeType;
+            this.close();
+            this.resetForType(submittedType);
+            this.clearImage();
         },
         async ensureLocation(forceRefresh = false) {
             if (!forceRefresh && this.form.latitude && this.form.longitude) {
@@ -2029,9 +2096,7 @@ function pinPostModal() {
                 }
 
                 this.loading = false;
-                this.close();
-                this.resetForType(this.activeType);
-                this.clearImage();
+                this.showSharePrompt(pin);
             } catch (error) {
                 console.error('pin submit error', error);
                 alert('投稿中にエラーが発生しました');
@@ -2344,4 +2409,3 @@ async function focusPinById(pinId) {
 }
 </script>
 @endsection
-
