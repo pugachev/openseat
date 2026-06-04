@@ -1401,7 +1401,7 @@ if (document.readyState === 'loading') {
                     <div class="text-center space-y-2">
                         <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-2xl">✓</div>
                         <h4 class="text-xl font-bold text-gray-900">ピンを投稿しました</h4>
-                        <p class="text-sm text-gray-500">必要に応じて、あなたのXアカウントでこの場所を共有できます。</p>
+                        <p class="text-sm text-gray-500">必要に応じて、Xやスマホの共有メニューからこの場所を共有できます。</p>
                     </div>
 
                     <div class="border border-gray-200 rounded-xl bg-gray-50 p-4 space-y-3">
@@ -1415,6 +1415,12 @@ if (document.readyState === 'loading') {
                                 class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-gray-900 text-white hover:bg-black transition shadow-md border border-gray-900"
                                 style="background-color:#111827 !important; color:#ffffff !important;">
                             Xで共有する
+                        </button>
+                        <button type="button"
+                                @click="shareWithDevice"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-md border border-blue-600"
+                                style="background-color:#2563eb !important; color:#ffffff !important;">
+                            スマホで共有
                         </button>
                         <button type="button"
                                 @click="finishAfterSubmit"
@@ -1952,6 +1958,43 @@ function pinPostModal() {
         shareToX() {
             if (!this.shareUrl) return;
             window.open(this.shareUrl, '_blank', 'noopener,noreferrer');
+        },
+        async shareWithDevice() {
+            if (!navigator.share) {
+                await this.copyShareTextFallback();
+                return;
+            }
+
+            const shareData = {
+                title: 'OpenSeat',
+                text: this.shareText,
+            };
+            const imageFile = this.form.imageFile;
+
+            if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+                shareData.files = [imageFile];
+            }
+
+            try {
+                await navigator.share(shareData);
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                console.warn('device share failed', error);
+                await this.copyShareTextFallback();
+            }
+        },
+        async copyShareTextFallback() {
+            if (navigator.clipboard && this.shareText) {
+                try {
+                    await navigator.clipboard.writeText(this.shareText);
+                    alert('共有内容をコピーしました。InstagramやTikTokで貼り付けて共有できます。');
+                    return;
+                } catch (error) {
+                    console.warn('clipboard copy failed', error);
+                }
+            }
+
+            alert('この端末ではスマホ共有を利用できません。共有内容をコピーして投稿してください。');
         },
         finishAfterSubmit() {
             const submittedType = this.activeType;
