@@ -13,8 +13,8 @@
     // console.log('スクリプトが読み込まれました');
 </script>
 <div class="mb-6">
-    <h2 class="text-3xl font-bold text-gray-900 mb-2">いまの場所を記録しよう</h2>
-    <p class="text-gray-600">いまの場所をメールで知らせることもできます</p>
+    <h2 class="text-3xl font-bold text-gray-900 mb-2">街をアルバムにしよう</h2>
+    <p class="text-gray-600">通勤中に見つけた景色<br>旅先で出会った風景<br>その場所に写真と思い出を残せます</p>
 </div>
 
 <!-- ボタンエリア -->
