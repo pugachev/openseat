@@ -1456,7 +1456,10 @@ if (document.readyState === 'loading') {
         aria-label="画像を閉じる">&times;</button>
     <div class="bg-white rounded-2xl shadow-2xl overflow-hidden" style="width: 90%; max-width: 800px; max-height: 88vh;">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
+            <div class="flex items-baseline gap-3 flex-wrap">
+                <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
+                <p id="pinImageViewerDate" class="text-sm font-semibold text-amber-700"></p>
+            </div>
         </div>
         <div class="p-4 md:p-6 bg-gray-100">
             <img id="pinImageViewerImage"
@@ -2165,6 +2168,22 @@ window.pinBoard = {
         const map = { 0: '空き', 1: '待ち', 2: '満席' };
         return map[value] || '';
     },
+    formatShotDate(value) {
+        if (!value) return '';
+
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).formatToParts(date);
+
+        const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
+    },
     resolveImageUrl(pin = {}) {
         const imagePath = pin.image_path || pin.imagePath || null;
         const rawUrl = pin.image_url || pin.imageUrl || null;
@@ -2221,7 +2240,8 @@ window.pinBoard = {
         this.pins.forEach(pin => {
             if (!pin.latitude || !pin.longitude) return;
 
-            const icon = createEmojiIcon(this.emojiByType[pin.type] || '📍');
+            const shotDate = this.formatShotDate(pin.createdAt || pin.created_at);
+            const icon = createEmojiIcon(this.emojiByType[pin.type] || '📍', shotDate);
             const popupHtml = this.buildPopup(pin);
 
             const marker = L.marker([pin.latitude, pin.longitude], { icon }).addTo(inlineMap);
@@ -2244,6 +2264,10 @@ window.pinBoard = {
         const tags = pin.tags || [];
         const imageUrl = this.resolveImageUrl(pin);
         const storeName = pin.storeName || pin.store_name;
+        const shotDate = this.formatShotDate(pin.createdAt || pin.created_at);
+        const shotDateHtml = shotDate
+            ? `<span class="text-xs font-semibold text-amber-700 whitespace-nowrap">${escapeHtml(shotDate)}</span>`
+            : '';
 
         const tagsHtml = tags && tags.length
             ? `<div class="flex flex-wrap gap-1 mt-2">${tags.map(tag => `<span class="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs">${escapeHtml(tag)}</span>`).join('')}</div>`
@@ -2254,7 +2278,7 @@ window.pinBoard = {
             : '';
 
         const imageHtml = imageUrl
-            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}">`
+            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}" data-shot-date="${escapeHtml(shotDate)}">`
             : '';
 
         const commentHtml = pin.comment
@@ -2267,7 +2291,7 @@ window.pinBoard = {
 
         return `
             <div class="space-y-2">
-                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}<span>${escapeHtml(storeName || '')}</span></div>
+                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}${shotDateHtml}<span>${escapeHtml(storeName || '')}</span></div>
                 ${imageHtml}
                 ${storeHtml}
                 ${statusHtml}
@@ -2349,15 +2373,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function openPinImageViewer(src, altText = '拡大画像', message = '') {
+function openPinImageViewer(src, altText = '拡大画像', message = '', shotDate = '') {
     const viewer = document.getElementById('pinImageViewer');
     const image = document.getElementById('pinImageViewerImage');
     const messageEl = document.getElementById('pinImageViewerMessage');
+    const dateEl = document.getElementById('pinImageViewerDate');
 
     if (!viewer || !image || !src) return;
 
     image.src = src;
     image.alt = altText;
+    if (dateEl) {
+        dateEl.textContent = shotDate || '';
+        dateEl.classList.toggle('hidden', !shotDate);
+    }
     if (messageEl) {
         const text = (message || '').trim();
         messageEl.textContent = text || 'コメントなし';
@@ -2371,6 +2400,7 @@ function closePinImageViewer() {
     const viewer = document.getElementById('pinImageViewer');
     const image = document.getElementById('pinImageViewerImage');
     const messageEl = document.getElementById('pinImageViewerMessage');
+    const dateEl = document.getElementById('pinImageViewerDate');
 
     if (!viewer || !image) return;
 
@@ -2379,6 +2409,10 @@ function closePinImageViewer() {
     image.src = '';
     if (messageEl) {
         messageEl.textContent = 'コメントなし';
+    }
+    if (dateEl) {
+        dateEl.textContent = '';
+        dateEl.classList.add('hidden');
     }
     document.body.style.overflow = '';
 }
@@ -2410,16 +2444,28 @@ function setupPinImageViewer() {
 
         const src = target.dataset.fullSrc || target.src;
         const message = target.dataset.message || '';
-        openPinImageViewer(src, target.alt || '拡大画像', message);
+        const shotDate = target.dataset.shotDate || '';
+        openPinImageViewer(src, target.alt || '拡大画像', message, shotDate);
     });
 }
 
 // 絵文字マーカーを生成
-function createEmojiIcon(emoji) {
+function createEmojiIcon(emoji, shotDate = '') {
+    const escapedDate = String(shotDate || '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[char]));
+
     return L.divIcon({
         className: 'emoji-pin-marker',
-        html: `<div class="flex items-center justify-center text-2xl" style="width: 36px; height: 36px;">${emoji || '📍'}</div>`,
-        iconSize: [36, 36],
+        html: `<div style="display:flex; align-items:center; justify-content:center; gap:3px; width:118px; height:36px;">
+            <div class="flex items-center justify-center text-2xl" style="width: 36px; height: 36px;">${emoji || '📍'}</div>
+            ${escapedDate ? `<div style="background:#ffffff; color:#92400e; border:1px solid #fcd34d; border-radius:9999px; padding:1px 6px; font-size:11px; font-weight:700; line-height:16px; box-shadow:0 1px 3px rgba(0,0,0,0.18); white-space:nowrap;">${escapedDate}</div>` : ''}
+        </div>`,
+        iconSize: [118, 36],
         iconAnchor: [18, 36],
     });
 }
