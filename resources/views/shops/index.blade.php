@@ -1039,9 +1039,89 @@ function refreshMapWithCurrentLocation() {
     );
 }
 
+// ピンリストを登録日時の降順で描画
+function renderPinList() {
+    const container = document.getElementById('pinListContainer');
+    if (!container) return;
+
+    const pins = window.pinBoard && window.pinBoard.pins ? [...window.pinBoard.pins] : [];
+
+    // 登録日時の降順にソート
+    pins.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+    });
+
+    if (pins.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 py-8 text-center">投稿がまだありません</p>';
+        return;
+    }
+
+    const emojiByType = { 1: '👋', 2: '🍽️', 3: '📷', 4: '⚠️' };
+    const esc = (text) => String(text || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    container.innerHTML = pins.map(pin => {
+        const emoji = emojiByType[pin.type] || '📍';
+        const shotDate = window.pinBoard.formatShotDate(pin.createdAt || pin.created_at);
+        const storeName = pin.storeName || pin.store_name || '';
+        const comment = pin.comment || '';
+        const tags = pin.tags || [];
+        const tagsHtml = tags.length
+            ? tags.map(tag => `<span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs">${esc(tag)}</span>`).join('')
+            : '';
+        const clickAttr = (pin.id !== undefined && pin.id !== null)
+            ? `onclick="switchToMapAndFocus(${pin.id})"`
+            : '';
+
+        return `
+            <div class="flex items-start gap-3 py-3 px-2 hover:bg-gray-50 cursor-pointer rounded-lg transition-colors" ${clickAttr}>
+                <div class="text-2xl flex-shrink-0">${emoji}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${shotDate ? `<span class="text-xs font-semibold text-amber-700">${esc(shotDate)}</span>` : ''}
+                        ${storeName ? `<span class="text-sm font-semibold text-gray-900">${esc(storeName)}</span>` : ''}
+                    </div>
+                    ${comment ? `<p class="text-sm text-gray-700 mt-0.5 truncate">${esc(comment)}</p>` : ''}
+                    ${tagsHtml ? `<div class="flex flex-wrap gap-1 mt-1">${tagsHtml}</div>` : ''}
+                </div>
+                <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        `;
+    }).join('');
+}
+
+// リストのピンをタップ → 地図タブに切り替えてピンにフォーカス
+function switchToMapAndFocus(pinId) {
+    const mapTab  = document.getElementById('mapTab');
+    const listTab = document.getElementById('listTab');
+    const mapView = document.getElementById('mapView');
+    const listView = document.getElementById('listView');
+
+    if (mapTab && listTab && mapView && listView) {
+        mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+        mapTab.classList.remove('border-transparent', 'text-gray-500');
+        listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        listTab.classList.add('border-transparent', 'text-gray-500');
+        listView.classList.add('hidden');
+        mapView.classList.remove('hidden');
+        setTimeout(() => {
+            if (inlineMap) inlineMap.invalidateSize();
+            focusPinById(pinId);
+        }, 100);
+    } else {
+        focusPinById(pinId);
+    }
+}
+
 // 地図表示の初期化
 function setupTabsInline() {
-    const mapView = document.getElementById('mapView');
+    const mapView  = document.getElementById('mapView');
+    const listView = document.getElementById('listView');
+    const mapTab   = document.getElementById('mapTab');
+    const listTab  = document.getElementById('listTab');
 
     if (!mapView) {
         console.error('地図要素が見つかりません');
@@ -1050,6 +1130,28 @@ function setupTabsInline() {
 
     mapView.classList.remove('hidden');
     mapView.style.display = 'block';
+
+    if (!mapTab || !listTab || !listView) return;
+
+    mapTab.addEventListener('click', () => {
+        mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+        mapTab.classList.remove('border-transparent', 'text-gray-500');
+        listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        listTab.classList.add('border-transparent', 'text-gray-500');
+        listView.classList.add('hidden');
+        mapView.classList.remove('hidden');
+        setTimeout(() => { if (inlineMap) inlineMap.invalidateSize(); }, 100);
+    });
+
+    listTab.addEventListener('click', () => {
+        listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+        listTab.classList.remove('border-transparent', 'text-gray-500');
+        mapTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        mapTab.classList.add('border-transparent', 'text-gray-500');
+        mapView.classList.add('hidden');
+        listView.classList.remove('hidden');
+        renderPinList();
+    });
 }
 
 // ページ読み込み時にタブ切り替えとダイアログを設定
@@ -1187,6 +1289,18 @@ if (document.readyState === 'loading') {
 }
 </script>
 
+<!-- タブナビゲーション -->
+<div class="border-b border-gray-200 mb-4">
+    <nav class="flex gap-8">
+        <button id="mapTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
+            🗺️ 地図
+        </button>
+        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
+            📋 リスト
+        </button>
+    </nav>
+</div>
+
 <!-- タブ切り替え -->
 <style>
 /* タブ切り替えのスタイル（CSSが読み込まれない場合のフォールバック） */
@@ -1223,6 +1337,13 @@ if (document.readyState === 'loading') {
 <!-- 地図表示エリア -->
 <div id="mapView" class="tab-content">
     <div id="map" class="w-full h-[600px] rounded-lg shadow-md border border-gray-200"></div>
+</div>
+
+<!-- ピンリスト表示エリア -->
+<div id="listView" class="tab-content hidden">
+    <div id="pinListContainer" class="divide-y divide-gray-100">
+        <p class="text-gray-500 py-8 text-center">読み込み中...</p>
+    </div>
 </div>
 
 <!-- 店舗情報ダイアログ -->
@@ -2251,6 +2372,12 @@ window.pinBoard = {
                 this.pinMarkers[String(pin.id)] = marker;
             }
         });
+
+        // リストタブが表示中なら一覧を更新
+        const listView = document.getElementById('listView');
+        if (listView && !listView.classList.contains('hidden')) {
+            renderPinList();
+        }
     },
     buildPopup(pin) {
         const escapeHtml = (text = '') => String(text).replace(/[&<>"']/g, (char) => ({
