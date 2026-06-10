@@ -1421,8 +1421,9 @@ if (document.readyState === 'loading') {
 
                     <!-- 待ち合わせ / 今の風景 -->
                     <div x-show="[1,3].includes(activeType)" class="space-y-4" x-cloak>
-                        <div class="relative border-2 border-dashed border-gray-200 rounded-xl h-56 flex items-center justify-center bg-gray-50 cursor-pointer hover:border-amber-300 transition-colors"
-                             @click="$refs.pinFileInput.click()">
+                        <div class="relative border-2 border-dashed border-amber-200 rounded-xl h-56 flex items-center justify-center bg-amber-50 hover:border-amber-300 transition-colors overflow-hidden"
+                             :class="{ 'cursor-pointer': !isAndroid }"
+                             @click="!isAndroid && !form.imagePreview ? $refs.pinFileInput.click() : null">
                             <template x-if="form.imagePreview">
                                 <div class="relative w-full h-full">
                                     <img :src="form.imagePreview" alt="preview" class="w-full h-full object-cover rounded-xl">
@@ -1430,13 +1431,31 @@ if (document.readyState === 'loading') {
                                             class="absolute top-3 right-3 bg-black/60 text-white rounded-full p-2 shadow">✕</button>
                                 </div>
                             </template>
-                            <template x-if="!form.imagePreview">
-                                <div class="text-center text-gray-500">
+                            {{-- プレビューなし: Android は2ボタン、iOS/PC は従来通りタップ --}}
+                            <div x-show="!form.imagePreview" class="w-full px-4">
+                                {{-- Android: カメラとギャラリーを縦並び全幅ボタンで表示 --}}
+                                <div x-show="isAndroid" class="w-full flex flex-col gap-3">
+                                    <button type="button"
+                                            @click.stop="$refs.pinCameraInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg shadow hover:bg-amber-600 active:bg-amber-700 transition-colors">
+                                        📸 カメラで撮影
+                                    </button>
+                                    <button type="button"
+                                            @click.stop="$refs.pinFileInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg shadow hover:bg-gray-300 active:bg-gray-400 transition-colors">
+                                        🖼️ ギャラリーから
+                                    </button>
+                                </div>
+                                {{-- iOS / PC: 従来通りタップで選択ダイアログ --}}
+                                <div x-show="!isAndroid" class="text-center text-gray-500">
                                     <div class="text-3xl mb-2">📷</div>
                                     <p class="font-medium">タップして写真を追加</p>
                                     <p class="text-xs text-gray-400">カメラ / ファイルを起動します</p>
                                 </div>
-                            </template>
+                            </div>
+                            {{-- Android: カメラ直接起動用 --}}
+                            <input type="file" x-ref="pinCameraInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange">
+                            {{-- 共通: ギャラリー・ファイル選択（iOS はこれ1つで選択ダイアログが出る） --}}
                             <input type="file" x-ref="pinFileInput" accept="image/*" class="hidden" @change="onFileChange">
                         </div>
                         <input type="text"
@@ -1948,6 +1967,7 @@ function pinPostModal() {
         activeType: null,
         loading: false,
         locationLabel: '位置情報が未取得です',
+        isAndroid: /android/i.test(navigator.userAgent),
         types: [
             { id: 1, label: '待ち合わせ', emoji: '👋', hint: '集合場所を写真付きで共有' },
             { id: 2, label: 'お店の状況', emoji: '🍽️', hint: '店名と混雑状況を投稿' },
@@ -2027,6 +2047,9 @@ function pinPostModal() {
             if (this.$refs?.pinFileInput) {
                 this.$refs.pinFileInput.value = '';
             }
+            if (this.$refs?.pinCameraInput) {
+                this.$refs.pinCameraInput.value = '';
+            }
 
             // 使わない項目はクリアして漏れを防ぐ
             if (id !== 2) {
@@ -2054,6 +2077,9 @@ function pinPostModal() {
             this.form.imageFile = null;
             if (this.$refs?.pinFileInput) {
                 this.$refs.pinFileInput.value = '';
+            }
+            if (this.$refs?.pinCameraInput) {
+                this.$refs.pinCameraInput.value = '';
             }
         },
         toggleTag(tag) {
