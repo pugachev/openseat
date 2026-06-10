@@ -147,6 +147,14 @@ class PinController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
+    public function like(int $id)
+    {
+        $pin = Pin::findOrFail($id);
+        $pin->increment('like_count');
+
+        return response()->json(['like_count' => $pin->like_count]);
+    }
+
     public function image(string $path)
     {
         $normalizedPath = ltrim($path, '/');

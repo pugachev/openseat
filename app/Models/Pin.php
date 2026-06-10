@@ -28,6 +28,7 @@ class Pin extends Model
         'longitude' => 'float',
         'status' => 'integer',
         'tags' => 'array',
+        'like_count' => 'integer',
     ];
 
     protected $appends = [

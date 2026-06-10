@@ -1074,12 +1074,20 @@ function renderPinList() {
             ? `onclick="switchToMapAndFocus(${pin.id})"`
             : '';
 
+        const likeCount = pin.likeCount !== undefined ? pin.likeCount : (pin.like_count || 0);
+        const likeHeart = likeCount > 0 ? '♥' : '♡';
+        const likeStyle = likeCount > 0 ? 'color:#f59e0b' : 'color:#9ca3af';
+        const likeHtml = (pin.id !== undefined && pin.id !== null)
+            ? `<button class="pin-like-btn" data-pin-id="${pin.id}" onclick="event.stopPropagation();likePinById(${pin.id})" style="border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 4px;"><span class="pin-like-heart" style="${likeStyle};font-size:15px;line-height:1;">${likeHeart}</span><span class="pin-like-count" style="color:#9ca3af;font-size:11px;">${likeCount > 0 ? likeCount : ''}</span></button>`
+            : '';
+
         return `
             <div class="flex items-start gap-3 py-3 px-2 hover:bg-gray-50 cursor-pointer rounded-lg transition-colors" ${clickAttr}>
                 <div class="text-2xl flex-shrink-0">${emoji}</div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         ${shotDate ? `<span class="text-xs font-semibold text-amber-700">${esc(shotDate)}</span>` : ''}
+                        ${likeHtml}
                         ${storeName ? `<span class="text-sm font-semibold text-gray-900">${esc(storeName)}</span>` : ''}
                     </div>
                     ${comment ? `<p class="text-sm text-gray-700 mt-0.5 truncate">${esc(comment)}</p>` : ''}
@@ -1577,9 +1585,13 @@ if (document.readyState === 'loading') {
         aria-label="画像を閉じる">&times;</button>
     <div class="bg-white rounded-2xl shadow-2xl overflow-hidden" style="width: 90%; max-width: 800px; max-height: 88vh;">
         <div class="px-6 py-4 border-b border-gray-200">
-            <div class="flex items-baseline gap-3 flex-wrap">
+            <div class="flex items-center gap-3 flex-wrap">
                 <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
                 <p id="pinImageViewerDate" class="text-sm font-semibold text-amber-700"></p>
+                <button id="pinImageViewerLikeBtn" type="button" onclick="likePinById(window._currentViewerPinId)" style="border:none;background:none;cursor:pointer;display:none;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;transition:background 0.15s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+                    <span id="pinImageViewerHeart" style="color:#9ca3af;font-size:22px;line-height:1;">♡</span>
+                    <span id="pinImageViewerLikeCount" style="color:#9ca3af;font-size:14px;"></span>
+                </button>
             </div>
         </div>
         <div class="p-4 md:p-6 bg-gray-100">
@@ -2405,7 +2417,7 @@ window.pinBoard = {
             : '';
 
         const imageHtml = imageUrl
-            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}" data-shot-date="${escapeHtml(shotDate)}">`
+            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}" data-shot-date="${escapeHtml(shotDate)}" data-pin-id="${pin.id !== undefined && pin.id !== null ? pin.id : ''}">`
             : '';
 
         const commentHtml = pin.comment
@@ -2416,9 +2428,17 @@ window.pinBoard = {
             ? `<p class="text-sm font-semibold text-gray-900">${escapeHtml(storeName)}</p>`
             : '';
 
+        const likeCount = pin.likeCount !== undefined ? pin.likeCount : (pin.like_count || 0);
+        const likeHeart = likeCount > 0 ? '♥' : '♡';
+        const likeStyle = likeCount > 0 ? 'color:#f59e0b' : 'color:#9ca3af';
+        const likeCountText = likeCount > 0 ? String(likeCount) : '';
+        const popupLikeHtml = (pin.id !== undefined && pin.id !== null)
+            ? `<button class="pin-like-btn" data-pin-id="${pin.id}" onclick="likePinById(${pin.id})" style="border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;transition:background 0.15s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span class="pin-like-heart" style="${likeStyle};font-size:18px;line-height:1;">${likeHeart}</span><span class="pin-like-count" style="color:#9ca3af;font-size:12px;">${likeCountText}</span></button>`
+            : '';
+
         return `
             <div class="space-y-2">
-                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}${shotDateHtml}<span>${escapeHtml(storeName || '')}</span></div>
+                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}${shotDateHtml}${popupLikeHtml}<span>${escapeHtml(storeName || '')}</span></div>
                 ${imageHtml}
                 ${storeHtml}
                 ${statusHtml}
@@ -2441,6 +2461,7 @@ window.pinBoard = {
             imageUrl: this.resolveImageUrl(pin),
             shopId: pin.shop_id || pin.shopId || null,
             createdAt: pin.created_at || pin.createdAt,
+            likeCount: pin.like_count || pin.likeCount || 0,
         };
 
         if (normalized.id !== undefined && normalized.id !== null) {
@@ -2500,7 +2521,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function openPinImageViewer(src, altText = '拡大画像', message = '', shotDate = '') {
+function openPinImageViewer(src, altText = '拡大画像', message = '', shotDate = '', pinId = null) {
     const viewer = document.getElementById('pinImageViewer');
     const image = document.getElementById('pinImageViewerImage');
     const messageEl = document.getElementById('pinImageViewerMessage');
@@ -2518,12 +2539,36 @@ function openPinImageViewer(src, altText = '拡大画像', message = '', shotDat
         const text = (message || '').trim();
         messageEl.textContent = text || 'コメントなし';
     }
+    // ♡ いいねボタンの状態を更新
+    window._currentViewerPinId = pinId;
+    const viewerLikeBtn = document.getElementById('pinImageViewerLikeBtn');
+    const viewerHeart = document.getElementById('pinImageViewerHeart');
+    const viewerCount = document.getElementById('pinImageViewerLikeCount');
+    if (viewerHeart && viewerCount && viewerLikeBtn) {
+        if (pinId !== null && pinId !== undefined) {
+            const pin = window.pinBoard && window.pinBoard.pins
+                ? window.pinBoard.pins.find(p => String(p.id) === String(pinId))
+                : null;
+            const lc = pin ? (pin.likeCount !== undefined ? pin.likeCount : (pin.like_count || 0)) : 0;
+            viewerHeart.textContent = lc > 0 ? '♥' : '♡';
+            viewerHeart.style.color = lc > 0 ? '#f59e0b' : '#9ca3af';
+            viewerCount.textContent = lc > 0 ? lc : '';
+            viewerLikeBtn.style.display = 'inline-flex';
+        } else {
+            viewerHeart.textContent = '♡';
+            viewerHeart.style.color = '#9ca3af';
+            viewerCount.textContent = '';
+            viewerLikeBtn.style.display = 'none';
+        }
+    }
+
     viewer.classList.remove('hidden');
     viewer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
 }
 
 function closePinImageViewer() {
+    window._currentViewerPinId = null;
     const viewer = document.getElementById('pinImageViewer');
     const image = document.getElementById('pinImageViewerImage');
     const messageEl = document.getElementById('pinImageViewerMessage');
@@ -2572,7 +2617,8 @@ function setupPinImageViewer() {
         const src = target.dataset.fullSrc || target.src;
         const message = target.dataset.message || '';
         const shotDate = target.dataset.shotDate || '';
-        openPinImageViewer(src, target.alt || '拡大画像', message, shotDate);
+        const pinId = target.dataset.pinId || null;
+        openPinImageViewer(src, target.alt || '拡大画像', message, shotDate, pinId);
     });
 }
 
@@ -2595,6 +2641,71 @@ function createEmojiIcon(emoji, shotDate = '') {
         iconSize: [118, 36],
         iconAnchor: [18, 36],
     });
+}
+
+// ♡ いいね処理
+async function likePinById(pinId) {
+    if (pinId === null || pinId === undefined) return;
+
+    const baseUrl = window.APP_BASE_URL || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    try {
+        const response = await fetch(`${baseUrl}/api/pins/${pinId}/like`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const newCount = data.like_count;
+
+        // メモリ上のピンデータを更新
+        if (window.pinBoard && window.pinBoard.pins) {
+            const pin = window.pinBoard.pins.find(p => String(p.id) === String(pinId));
+            if (pin) {
+                pin.likeCount = newCount;
+                pin.like_count = newCount;
+            }
+        }
+
+        // DOM上の全 ♡ ボタンを更新（ポップアップ・リスト共通）
+        document.querySelectorAll(`.pin-like-btn[data-pin-id="${pinId}"]`).forEach(btn => {
+            const heartEl = btn.querySelector('.pin-like-heart');
+            const countEl = btn.querySelector('.pin-like-count');
+            if (heartEl) {
+                heartEl.textContent = newCount > 0 ? '♥' : '♡';
+                heartEl.style.color = newCount > 0 ? '#f59e0b' : '#9ca3af';
+            }
+            if (countEl) {
+                countEl.textContent = newCount > 0 ? newCount : '';
+            }
+        });
+
+        // 画像ビューアが開いていれば更新
+        if (window._currentViewerPinId !== null && String(window._currentViewerPinId) === String(pinId)) {
+            const viewerHeart = document.getElementById('pinImageViewerHeart');
+            const viewerCount = document.getElementById('pinImageViewerLikeCount');
+            if (viewerHeart) {
+                viewerHeart.textContent = newCount > 0 ? '♥' : '♡';
+                viewerHeart.style.color = newCount > 0 ? '#f59e0b' : '#9ca3af';
+            }
+            if (viewerCount) {
+                viewerCount.textContent = newCount > 0 ? newCount : '';
+            }
+        }
+
+        // リストタブが表示中なら再描画
+        const listView = document.getElementById('listView');
+        if (listView && !listView.classList.contains('hidden')) {
+            renderPinList();
+        }
+    } catch (error) {
+        console.error('いいねに失敗しました:', error);
+    }
 }
 
 // ?pin= URL パラメータで該当ピンにフォーカスする
