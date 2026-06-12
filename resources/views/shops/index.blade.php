@@ -1375,15 +1375,15 @@ if (document.readyState === 'loading') {
 
 <!-- 地図掲示板投稿モーダル -->
 <div x-data="pinPostModal()" x-init="register()" x-show="open" x-cloak
-    class="fixed inset-0 bg-gray-500 bg-opacity-40 flex items-center justify-center p-4 z-[20000]"
+    class="fixed inset-0 bg-gray-500 bg-opacity-40 flex items-start justify-center p-4 overflow-y-auto z-[20000]"
     @click.self="close()">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-auto">
         <div class="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
-            <div>
+            <div class="min-w-0 flex-1">
                 <p class="text-sm text-amber-600 font-semibold">地図掲示板</p>
-                <h3 class="text-2xl font-bold text-gray-900" x-text="view === 'menu' ? '今の状況をシェア' : (view === 'success' ? '投稿完了' : (currentType.emoji + ' ' + currentType.label))"></h3>
+                <h3 class="text-xl font-bold text-gray-900 truncate" x-text="view === 'menu' ? '今の状況をシェア' : (view === 'success' ? '投稿完了' : (currentType.emoji + ' ' + currentType.label))"></h3>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-shrink-0 ml-2">
                 <button x-show="view === 'form'" @click="backToMenu" class="text-gray-500 hover:text-gray-700 text-sm font-semibold">一覧に戻る</button>
                 <button @click="view === 'success' ? finishAfterSubmit() : close()" class="text-gray-400 hover:text-gray-600">
                     <span class="sr-only">閉じる</span>
@@ -1394,7 +1394,7 @@ if (document.readyState === 'loading') {
             </div>
         </div>
 
-        <div class="px-4 sm:px-6 py-5 max-h-[85vh] overflow-y-auto relative">
+        <div class="px-4 sm:px-6 py-5 max-h-[65vh] overflow-y-auto relative">
             <!-- メニュー：4ボタン縦並び -->
             <div x-show="view === 'menu'" class="space-y-3" x-cloak>
                 <template x-for="item in types" :key="item.id">
@@ -1415,7 +1415,7 @@ if (document.readyState === 'loading') {
 
             <!-- hidden location -->
             <template x-if="view === 'form'">
-                <div class="space-y-5 pb-24" x-cloak>
+                <div class="space-y-5 pb-4" x-cloak>
                     <input type="hidden" name="pin_latitude" x-model="form.latitude">
                     <input type="hidden" name="pin_longitude" x-model="form.longitude">
 
@@ -1578,20 +1578,16 @@ if (document.readyState === 'loading') {
                     </div>
                 </div>
             </template>
-            <!-- 固定フッターの送信ボタン（フォーム表示時のみ） -->
-            <div class="sticky bottom-0 inset-x-0 -mx-4 sm:-mx-6 mt-4 flex justify-center pointer-events-none">
-                <div x-show="view === 'form'" x-cloak
-                    class="w-full max-w-2xl px-4 sm:px-6 pb-4 pointer-events-auto">
-                    <div class="bg-white rounded-t-2xl px-4 py-3 border-t border-gray-200 shadow-lg">
-                        <button type="button" @click="submit" :disabled="loading"
-                                class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
-                                style="background-color:#f59e0b !important; color:#ffffff !important;">
-                            <span x-show="!loading">この内容でピンを刺す</span>
-                            <span x-show="loading">送信中...</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+        </div>
+        <!-- 固定フッターの送信ボタン（フォーム表示時のみ） -->
+        <div x-show="view === 'form'" x-cloak
+            class="px-4 sm:px-6 pb-4 pt-3 border-t border-gray-200 bg-white">
+            <button type="button" @click="submit" :disabled="loading"
+                    class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
+                    style="background-color:#f59e0b !important; color:#ffffff !important;">
+                <span x-show="!loading">この内容でピンを刺す</span>
+                <span x-show="loading">送信中...</span>
+            </button>
         </div>
     </div>
 </div>

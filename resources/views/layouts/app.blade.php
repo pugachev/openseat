@@ -18,8 +18,9 @@
     <div class="min-h-screen">
         <!-- Header -->
         <header class="bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <h1 class="text-2xl font-bold text-gray-900">いまどこいる？</h1>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-gray-900">いまどこ？</h1>
+                <span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">管理人は神戸市兵庫駅周辺を開拓中！</span>
             </div>
         </header>
 
