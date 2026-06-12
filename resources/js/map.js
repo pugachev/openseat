@@ -2,6 +2,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import axios from 'axios';
 
+// Viteバンドル済みのLをグローバルに公開（bladeのinitMapInlineがCDN二重ロードしないようにする）
+window.L = L;
+
 // Leafletのデフォルトアイコン設定（Webpack/Vite環境での問題を回避）
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({

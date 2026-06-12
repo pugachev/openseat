@@ -416,6 +416,13 @@ function createMap(lat, lng) {
             }
         }, 1000);
 
+        // 拡張機能や遅延レンダリングへの最終フォールバック
+        setTimeout(() => {
+            if (inlineMap) {
+                inlineMap.invalidateSize();
+            }
+        }, 2500);
+
         // console.log('createMap完了');
     } catch (error) {
         console.error('地図作成エラー:', error);
