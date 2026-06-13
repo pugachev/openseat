@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\Auth\LoginController;
 use App\Http\Controllers\Admin\Auth\RegisterController;
+use App\Http\Controllers\Admin\PageViewController;
 use App\Http\Controllers\AdminShopController;
 use App\Http\Controllers\PinController;
 use App\Http\Controllers\ShopController;
@@ -43,5 +44,6 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
         return redirect()->route('admin.shops.index');
     });
 
+    Route::get('/page-views', [PageViewController::class, 'index'])->name('page_views.index');
     Route::resource('shops', AdminShopController::class);
 });

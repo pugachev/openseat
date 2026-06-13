@@ -7,6 +7,10 @@
     <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h2 class="text-2xl font-bold text-gray-900">店舗一覧</h2>
         <div class="flex gap-3 flex-wrap">
+            <a href="{{ route('admin.page_views.index') }}"
+               class="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors font-medium">
+                PVレポート
+            </a>
             <a href="{{ route('admin.shops.create') }}"
                class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
                 + 店舗を登録
