@@ -45,5 +45,6 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     });
 
     Route::get('/page-views', [PageViewController::class, 'index'])->name('page_views.index');
+    Route::post('/banner', [AdminShopController::class, 'updateBanner'])->name('banner.update');
     Route::resource('shops', AdminShopController::class);
 });

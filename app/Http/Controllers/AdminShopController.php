@@ -142,5 +142,23 @@ class AdminShopController extends Controller
             ->route('admin.shops.index')
             ->with('success', '店舗を削除しました');
     }
+
+    /**
+     * バナー設定を更新
+     */
+    public function updateBanner(Request $request)
+    {
+        $validated = $request->validate([
+            'banner_text'       => 'required|string|max:60',
+            'banner_bg_color'   => 'required|string|max:7',
+            'banner_text_color' => 'required|string|max:7',
+        ]);
+
+        auth()->user()->update($validated);
+
+        return redirect()
+            ->route('admin.shops.index')
+            ->with('success', 'バナーを更新しました');
+    }
 }
 

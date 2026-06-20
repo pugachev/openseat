@@ -20,7 +20,18 @@
         <header class="bg-white shadow-sm">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
                 <h1 class="text-2xl font-bold text-gray-900">いまどこ？</h1>
-                <span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">管理人は神戸市兵庫駅周辺を開拓中！</span>
+                @php
+                    $bannerUser = auth()->user() ?? \App\Models\User::first();
+                    $bannerText = $bannerUser?->banner_text ?? '管理人は開拓中！';
+                    $bannerBg   = $bannerUser?->banner_bg_color ?? '#dcfce7';
+                    $bannerFg   = $bannerUser?->banner_text_color ?? '#166534';
+                @endphp
+                @if($bannerText)
+                    <span class="text-sm font-medium px-3 py-1 rounded-full"
+                          style="background-color: {{ $bannerBg }}; color: {{ $bannerFg }};">
+                        {{ $bannerText }}
+                    </span>
+                @endif
             </div>
         </header>
 
