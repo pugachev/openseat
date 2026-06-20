@@ -2098,18 +2098,12 @@ function pinPostModal() {
         buildShareText(pin) {
             const baseUrl = window.APP_BASE_URL || window.location.origin;
             const appUrl = `${baseUrl.replace(/\/$/, '')}/?pin=${encodeURIComponent(pin.id)}`;
-            const lat = parseFloat(pin.latitude);
-            const lng = parseFloat(pin.longitude);
-            const osmUrl = Number.isFinite(lat) && Number.isFinite(lng)
-                ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`
-                : '';
             const type = this.types.find(item => Number(item.id) === Number(pin.type));
             const lines = [
                 'OpenSeatにピンを投稿しました',
                 '',
                 type ? `${type.emoji} ${type.label}` : '',
                 pin.comment ? String(pin.comment).trim() : '',
-                osmUrl ? `地図で見る: ${osmUrl}` : '',
                 `投稿を見る: ${appUrl}`,
             ];
 
