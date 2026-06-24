@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Pin;
 use App\Models\Shop;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,8 +16,9 @@ class ShopController extends Controller
     public function index()
     {
         $shops = Shop::orderBy('name')->get();
+        $pinCount = Pin::count();
 
-        return view('shops.index', compact('shops'));
+        return view('shops.index', compact('shops', 'pinCount'));
     }
 
     /**

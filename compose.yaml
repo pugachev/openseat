@@ -19,6 +19,8 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
+            - './docker/php/99-custom.ini:/etc/php/8.4/cli/conf.d/99-custom.ini'
+            - './docker/php/99-custom.ini:/etc/php/8.4/fpm/conf.d/99-custom.ini'
         networks:
             - sail
         depends_on:
@@ -69,6 +71,13 @@ services:
             - mysql
         volumes:
             - phpmyadmin-session:/tmp
+    mailpit:
+        image: 'axllent/mailpit:latest'
+        ports:
+            - '${FORWARD_MAILPIT_PORT:-8025}:8025'
+            - '${FORWARD_MAILPIT_SMTP_PORT:-1025}:1025'
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge

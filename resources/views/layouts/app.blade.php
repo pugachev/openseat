@@ -18,8 +18,20 @@
     <div class="min-h-screen">
         <!-- Header -->
         <header class="bg-white shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <h1 class="text-2xl font-bold text-gray-900">いま空いてる？</h1>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-gray-900">いまどこ？</h1>
+                @php
+                    $bannerUser = auth()->user() ?? \App\Models\User::first();
+                    $bannerText = $bannerUser?->banner_text ?? '管理人は開拓中！';
+                    $bannerBg   = $bannerUser?->banner_bg_color ?? '#dcfce7';
+                    $bannerFg   = $bannerUser?->banner_text_color ?? '#166534';
+                @endphp
+                @if($bannerText)
+                    <span class="text-sm font-medium px-3 py-1 rounded-full"
+                          style="background-color: {{ $bannerBg }}; color: {{ $bannerFg }};">
+                        {{ $bannerText }}
+                    </span>
+                @endif
             </div>
         </header>
 
@@ -36,4 +48,3 @@
     </div>
 </body>
 </html>
-

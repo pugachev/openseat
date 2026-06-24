@@ -13,8 +13,8 @@
     // console.log('スクリプトが読み込まれました');
 </script>
 <div class="mb-6">
-    <h2 class="text-3xl font-bold text-gray-900 mb-2">空き状況を確認</h2>
-    <p class="text-gray-600">現在の混雑状況を確認できます</p>
+    <h2 class="text-3xl font-bold text-gray-900 mb-2">街をアルバムにしよう</h2>
+    <p class="text-gray-600">通勤中に見つけた景色<br>旅先で出会った風景<br>その場所に写真と思い出を残せます</p>
 </div>
 
 <!-- ボタンエリア -->
@@ -57,6 +57,7 @@
                 class="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors font-medium">
             📥 ダウンロード
         </button>
+        <span id="pinCountDisplay" class="text-sm text-gray-600">現在の登録数：{{ $pinCount }}件</span>
         <span id="downloadStatus" class="text-sm"></span>
     </div>
 </div>
@@ -175,22 +176,9 @@ function handleLocationUpdate(event) {
                     statusEl.className = 'mt-2 text-sm text-green-600';
 
                     // 地図タブは既にアクティブのはず（初期表示が地図タブなので）
-                    const mapTab = document.getElementById('mapTab');
-                    const listTab = document.getElementById('listTab');
-                    const listView = document.getElementById('listView');
                     const mapView = document.getElementById('mapView');
 
-                    if (mapTab && mapView) {
-                        // 地図タブをアクティブにする（既にアクティブの場合もある）
-                        mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-                        mapTab.classList.remove('border-transparent', 'text-gray-500');
-                        if (listTab) {
-                            listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                            listTab.classList.add('border-transparent', 'text-gray-500');
-                        }
-                        if (listView) {
-                            listView.classList.add('hidden');
-                        }
+                    if (mapView) {
                         mapView.classList.remove('hidden');
 
                         // 地図要素が表示されるまで少し待つ
@@ -420,6 +408,20 @@ function createMap(lat, lng) {
                 // console.log('地図のサイズ再計算完了');
             }
         }, 300);
+
+        // iOS Chrome 向けに追加で再計算（タイルが上部に描画されないケースの対策）
+        setTimeout(() => {
+            if (inlineMap) {
+                inlineMap.invalidateSize();
+            }
+        }, 1000);
+
+        // 拡張機能や遅延レンダリングへの最終フォールバック
+        setTimeout(() => {
+            if (inlineMap) {
+                inlineMap.invalidateSize();
+            }
+        }, 2500);
 
         // console.log('createMap完了');
     } catch (error) {
@@ -665,15 +667,6 @@ function displayShopsOnMap(shops, userLat, userLng) {
 
         inlineMarkers.push(marker);
     });
-
-    // すべてのマーカーが表示されるように地図を調整
-    if (inlineMarkers.length > 0) {
-        const bounds = L.latLngBounds(inlineMarkers.map(m => m.getLatLng()));
-        bounds.extend([userLat, userLng]);
-        inlineMap.fitBounds(bounds.pad(0.2), {
-            maxZoom: 16
-        });
-    }
 
     // リスト表示も更新
     updateShopList(shops);
@@ -1044,63 +1037,126 @@ function refreshMapWithCurrentLocation() {
     );
 }
 
-// タブ切り替え機能
-function setupTabsInline() {
-    const listTab = document.getElementById('listTab');
-    const mapTab = document.getElementById('mapTab');
-    const listView = document.getElementById('listView');
-    const mapView = document.getElementById('mapView');
+// ピンリストを登録日時の降順で描画
+function renderPinList() {
+    const container = document.getElementById('pinListContainer');
+    if (!container) return;
 
-    if (!listTab || !mapTab || !listView || !mapView) {
-        console.error('タブ要素が見つかりません');
+    const pins = window.pinBoard && window.pinBoard.pins ? [...window.pinBoard.pins] : [];
+
+    // 撮影日時（ない場合は登録日時）の降順にソート
+    pins.sort((a, b) => {
+        const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+    });
+
+    if (pins.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 py-8 text-center">投稿がまだありません</p>';
         return;
     }
 
-    // 初期状態を設定（地図タブがアクティブ）
-    mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-    mapTab.classList.remove('border-transparent', 'text-gray-500');
-    listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-    listTab.classList.add('border-transparent', 'text-gray-500');
-    listView.classList.add('hidden');
-    mapView.classList.remove('hidden');
+    const emojiByType = { 1: '👋', 2: '🍽️', 3: '📷', 4: '⚠️' };
+    const esc = (text) => String(text || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    listTab.addEventListener('click', () => {
-        // console.log('リストタブがクリックされました');
-        listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-        listTab.classList.remove('border-transparent', 'text-gray-500');
-        mapTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-        mapTab.classList.add('border-transparent', 'text-gray-500');
-        listView.classList.remove('hidden');
-        mapView.classList.add('hidden');
-        // 地図を確実に非表示にする
-        mapView.style.display = 'none';
-        listView.style.display = 'block';
+    container.innerHTML = pins.map(pin => {
+        const emoji = emojiByType[pin.type] || '📍';
+        const shotDate = window.pinBoard.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
+        const storeName = pin.storeName || pin.store_name || '';
+        const comment = pin.comment || '';
+        const tags = pin.tags || [];
+        const tagsHtml = tags.length
+            ? tags.map(tag => `<span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs">${esc(tag)}</span>`).join('')
+            : '';
+        const clickAttr = (pin.id !== undefined && pin.id !== null)
+            ? `onclick="switchToMapAndFocus(${pin.id})"`
+            : '';
 
-        // 開いているダイアログを閉じる
-        const dialog = document.getElementById('shopDialog');
-        if (dialog && !dialog.classList.contains('hidden')) {
-            dialog.classList.add('hidden');
-        }
-    });
+        const likeCount = pin.likeCount !== undefined ? pin.likeCount : (pin.like_count || 0);
+        const likeHeart = likeCount > 0 ? '♥' : '♡';
+        const likeStyle = likeCount > 0 ? 'color:#f59e0b' : 'color:#9ca3af';
+        const likeHtml = (pin.id !== undefined && pin.id !== null)
+            ? `<button class="pin-like-btn" data-pin-id="${pin.id}" onclick="event.stopPropagation();likePinById(${pin.id})" style="border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 4px;"><span class="pin-like-heart" style="${likeStyle};font-size:15px;line-height:1;">${likeHeart}</span><span class="pin-like-count" style="color:#9ca3af;font-size:11px;">${likeCount > 0 ? likeCount : ''}</span></button>`
+            : '';
 
-    mapTab.addEventListener('click', () => {
-        // console.log('地図タブがクリックされました'); // デバッグ用
+        return `
+            <div class="flex items-start gap-3 py-3 px-2 hover:bg-gray-50 cursor-pointer rounded-lg transition-colors" ${clickAttr}>
+                <div class="text-2xl flex-shrink-0">${emoji}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        ${shotDate ? `<span class="text-xs font-semibold text-amber-700">${esc(shotDate)}</span>` : ''}
+                        ${likeHtml}
+                        ${storeName ? `<span class="text-sm font-semibold text-gray-900">${esc(storeName)}</span>` : ''}
+                    </div>
+                    ${comment ? `<p class="text-sm text-gray-700 mt-0.5 truncate">${esc(comment)}</p>` : ''}
+                    ${tagsHtml ? `<div class="flex flex-wrap gap-1 mt-1">${tagsHtml}</div>` : ''}
+                </div>
+                <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        `;
+    }).join('');
+}
+
+// リストのピンをタップ → 地図タブに切り替えてピンにフォーカス
+function switchToMapAndFocus(pinId) {
+    const mapTab  = document.getElementById('mapTab');
+    const listTab = document.getElementById('listTab');
+    const mapView = document.getElementById('mapView');
+    const listView = document.getElementById('listView');
+
+    if (mapTab && listTab && mapView && listView) {
         mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
         mapTab.classList.remove('border-transparent', 'text-gray-500');
         listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
         listTab.classList.add('border-transparent', 'text-gray-500');
         listView.classList.add('hidden');
         mapView.classList.remove('hidden');
-        // リストを確実に非表示にする
-        listView.style.display = 'none';
-        mapView.style.display = 'block';
+        setTimeout(() => {
+            if (inlineMap) inlineMap.invalidateSize();
+            focusPinById(pinId);
+        }, 100);
+    } else {
+        focusPinById(pinId);
+    }
+}
 
-        // 地図のサイズを再計算
-        if (inlineMap) {
-            setTimeout(() => {
-                inlineMap.invalidateSize();
-            }, 100);
-        }
+// 地図表示の初期化
+function setupTabsInline() {
+    const mapView  = document.getElementById('mapView');
+    const listView = document.getElementById('listView');
+    const mapTab   = document.getElementById('mapTab');
+    const listTab  = document.getElementById('listTab');
+
+    if (!mapView) {
+        console.error('地図要素が見つかりません');
+        return;
+    }
+
+    mapView.classList.remove('hidden');
+    mapView.style.display = 'block';
+
+    if (!mapTab || !listTab || !listView) return;
+
+    mapTab.addEventListener('click', () => {
+        mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+        mapTab.classList.remove('border-transparent', 'text-gray-500');
+        listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        listTab.classList.add('border-transparent', 'text-gray-500');
+        listView.classList.add('hidden');
+        mapView.classList.remove('hidden');
+        setTimeout(() => { if (inlineMap) inlineMap.invalidateSize(); }, 100);
+    });
+
+    listTab.addEventListener('click', () => {
+        listTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+        listTab.classList.remove('border-transparent', 'text-gray-500');
+        mapTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        mapTab.classList.add('border-transparent', 'text-gray-500');
+        mapView.classList.add('hidden');
+        listView.classList.remove('hidden');
+        renderPinList();
     });
 }
 
@@ -1239,6 +1295,18 @@ if (document.readyState === 'loading') {
 }
 </script>
 
+<!-- タブナビゲーション -->
+<div class="border-b border-gray-200 mb-4">
+    <nav class="flex gap-8">
+        <button id="mapTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
+            🗺️ 地図
+        </button>
+        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
+            📋 リスト
+        </button>
+    </nav>
+</div>
+
 <!-- タブ切り替え -->
 <style>
 /* タブ切り替えのスタイル（CSSが読み込まれない場合のフォールバック） */
@@ -1272,28 +1340,15 @@ if (document.readyState === 'loading') {
     touch-action: none;
 }
 </style>
-<div class="mb-6 border-b border-gray-200">
-    <nav class="flex space-x-8">
-        <button id="mapTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
-            地図表示
-        </button>
-        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
-            リスト表示
-        </button>
-    </nav>
-</div>
-
 <!-- 地図表示エリア -->
 <div id="mapView" class="tab-content">
     <div id="map" class="w-full h-[600px] rounded-lg shadow-md border border-gray-200"></div>
 </div>
 
-<!-- リスト表示エリア -->
+<!-- ピンリスト表示エリア -->
 <div id="listView" class="tab-content hidden">
-    <div id="shopListContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="text-center py-12 col-span-full">
-            <p class="text-gray-500">位置情報を更新すると、近くの店舗が表示されます</p>
-        </div>
+    <div id="pinListContainer" class="divide-y divide-gray-100">
+        <p class="text-gray-500 py-8 text-center">読み込み中...</p>
     </div>
 </div>
 
@@ -1318,17 +1373,17 @@ if (document.readyState === 'loading') {
 
 <!-- 地図掲示板投稿モーダル -->
 <div x-data="pinPostModal()" x-init="register()" x-show="open" x-cloak
-    class="fixed inset-0 bg-gray-500 bg-opacity-40 flex items-center justify-center p-4 z-[20000]"
+    class="fixed inset-0 bg-gray-500 bg-opacity-40 flex items-start justify-center p-4 overflow-y-auto z-[20000]"
     @click.self="close()">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden my-auto">
         <div class="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
-            <div>
+            <div class="min-w-0 flex-1">
                 <p class="text-sm text-amber-600 font-semibold">地図掲示板</p>
-                <h3 class="text-2xl font-bold text-gray-900" x-text="view === 'menu' ? '今の状況をシェア' : (currentType.emoji + ' ' + currentType.label)"></h3>
+                <h3 class="text-xl font-bold text-gray-900 truncate" x-text="view === 'menu' ? '今の状況をシェア' : (view === 'success' ? '投稿完了' : (currentType.emoji + ' ' + currentType.label))"></h3>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-shrink-0 ml-2">
                 <button x-show="view === 'form'" @click="backToMenu" class="text-gray-500 hover:text-gray-700 text-sm font-semibold">一覧に戻る</button>
-                <button @click="close()" class="text-gray-400 hover:text-gray-600">
+                <button @click="view === 'success' ? finishAfterSubmit() : close()" class="text-gray-400 hover:text-gray-600">
                     <span class="sr-only">閉じる</span>
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -1337,7 +1392,7 @@ if (document.readyState === 'loading') {
             </div>
         </div>
 
-        <div class="px-4 sm:px-6 py-5 max-h-[85vh] overflow-y-auto relative">
+        <div class="px-4 sm:px-6 py-5 max-h-[65vh] overflow-y-auto relative">
             <!-- メニュー：4ボタン縦並び -->
             <div x-show="view === 'menu'" class="space-y-3" x-cloak>
                 <template x-for="item in types" :key="item.id">
@@ -1358,29 +1413,59 @@ if (document.readyState === 'loading') {
 
             <!-- hidden location -->
             <template x-if="view === 'form'">
-                <div class="space-y-5 pb-24" x-cloak>
+                <div class="space-y-5 pb-4" x-cloak>
                     <input type="hidden" name="pin_latitude" x-model="form.latitude">
                     <input type="hidden" name="pin_longitude" x-model="form.longitude">
 
                     <!-- 待ち合わせ / 今の風景 -->
                     <div x-show="[1,3].includes(activeType)" class="space-y-4" x-cloak>
-                        <div class="relative border-2 border-dashed border-gray-200 rounded-xl h-56 flex items-center justify-center bg-gray-50 cursor-pointer hover:border-amber-300 transition-colors"
-                             @click="$refs.pinFileInput.click()">
-                            <template x-if="form.imagePreview">
-                                <div class="relative w-full h-full">
-                                    <img :src="form.imagePreview" alt="preview" class="w-full h-full object-cover rounded-xl">
+                        <div class="relative border-2 border-dashed border-amber-200 rounded-xl h-56 flex items-center justify-center bg-amber-50 hover:border-amber-300 transition-colors overflow-hidden"
+                             :class="{ 'cursor-pointer': !isAndroid }"
+                             @click="!isAndroid && form.imagePreviews.length === 0 ? $refs.pinFileInput.click() : null">
+                            <template x-if="form.imagePreviews.length > 0">
+                                <div class="relative w-full h-full p-2">
+                                    <div class="grid gap-2 h-full"
+                                         :class="form.imagePreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
+                                        <template x-for="preview in form.imagePreviews.slice(0, 4)" :key="preview.url">
+                                            <div class="relative overflow-hidden rounded-lg bg-white">
+                                                <img :src="preview.url" alt="preview" class="w-full h-full object-cover">
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div x-show="form.imagePreviews.length > 4"
+                                         class="absolute bottom-3 left-3 px-2 py-1 rounded-full bg-black/60 text-white text-xs font-semibold">
+                                        +<span x-text="form.imagePreviews.length - 4"></span>
+                                    </div>
                                     <button type="button" @click.stop="clearImage"
                                             class="absolute top-3 right-3 bg-black/60 text-white rounded-full p-2 shadow">✕</button>
                                 </div>
                             </template>
-                            <template x-if="!form.imagePreview">
-                                <div class="text-center text-gray-500">
-                                    <div class="text-3xl mb-2">📷</div>
-                                    <p class="font-medium">タップして写真を追加</p>
-                                    <p class="text-xs text-gray-400">カメラ / ファイルを起動します</p>
+                            {{-- プレビューなし: Androidは撮影と選択を分け、iOS/PCはOS標準メニューに任せる --}}
+                            <div x-show="form.imagePreviews.length === 0" class="w-full px-4">
+                                <div x-show="isAndroid" class="w-full flex flex-col gap-3">
+                                    <button type="button"
+                                            @click.stop="$refs.pinCameraInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg shadow hover:bg-amber-600 active:bg-amber-700 transition-colors">
+                                        📸 カメラで撮影
+                                    </button>
+                                    <button type="button"
+                                            @click.stop="$refs.pinFileInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg shadow hover:bg-gray-300 active:bg-gray-400 transition-colors">
+                                        🖼️ ギャラリーから
+                                    </button>
                                 </div>
-                            </template>
-                            <input type="file" x-ref="pinFileInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange">
+                                <div x-show="!isAndroid">
+                                    <button type="button"
+                                            @click.stop="$refs.pinFileInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg shadow hover:bg-amber-600 active:bg-amber-700 transition-colors">
+                                        📷 画像を投稿
+                                    </button>
+                                </div>
+                            </div>
+                            {{-- Android: カメラ直接起動用 --}}
+                            <input type="file" x-ref="pinCameraInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange($event, 'camera')">
+                            {{-- ギャラリー / OS標準メニュー用 --}}
+                            <input type="file" x-ref="pinFileInput" accept="image/*" multiple class="hidden" @change="onFileChange($event, 'gallery')">
                         </div>
                         <input type="text"
                                x-model="form.comment"
@@ -1450,26 +1535,68 @@ if (document.readyState === 'loading') {
                                   class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400"></textarea>
                     </div>
 
+                    <!-- お知らせする (今の風景) -->
+                    <div x-show="activeType === 3" class="space-y-2 border border-gray-100 rounded-xl p-4 bg-gray-50">
+                        <p class="text-sm font-semibold text-gray-700">📩 お知らせする</p>
+                        <input type="email"
+                               x-model="form.notifyEmail"
+                               placeholder="メールアドレス（任意）"
+                               class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-sm bg-white"
+                               autocomplete="email">
+                        <p class="text-xs text-gray-400">入力したアドレスに投稿した場所のOpenStreetMapリンクをお知らせします</p>
+                    </div>
+
                     <div class="flex items-center justify-between text-sm text-gray-500">
                         <span class="flex items-center gap-2"><span>📍</span><span x-text="locationLabel"></span></span>
-                        <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation()">位置を更新</button>
+                        <button type="button" class="text-amber-700 font-semibold" @click="ensureLocation(true)">位置を更新</button>
                     </div>
                 </div>
             </template>
-            <!-- 固定フッターの送信ボタン（フォーム表示時のみ） -->
-            <div class="sticky bottom-0 inset-x-0 -mx-4 sm:-mx-6 mt-4 flex justify-center pointer-events-none">
-                <div x-show="view === 'form'" x-cloak
-                    class="w-full max-w-2xl px-4 sm:px-6 pb-4 pointer-events-auto">
-                    <div class="bg-white rounded-t-2xl px-4 py-3 border-t border-gray-200 shadow-lg">
-                        <button type="button" @click="submit" :disabled="loading"
-                                class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
-                                style="background-color:#f59e0b !important; color:#ffffff !important;">
-                            <span x-show="!loading">この内容でピンを刺す</span>
-                            <span x-show="loading">送信中...</span>
+
+            <template x-if="view === 'success'">
+                <div class="space-y-5 py-6" x-cloak>
+                    <div class="text-center space-y-2">
+                        <div class="mx-auto w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-2xl">✓</div>
+                        <h4 class="text-xl font-bold text-gray-900">ピンを投稿しました</h4>
+                        <p class="text-sm text-gray-500">必要に応じて、Xやスマホの共有メニューからこの場所を共有できます。</p>
+                    </div>
+
+                    <div class="border border-gray-200 rounded-xl bg-gray-50 p-4 space-y-3">
+                        <p class="text-sm font-semibold text-gray-700">共有内容</p>
+                        <p class="text-sm text-gray-700 whitespace-pre-line break-words" x-text="shareText"></p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button type="button"
+                                @click="shareToX"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-gray-900 text-white hover:bg-black transition shadow-md border border-gray-900"
+                                style="background-color:#111827 !important; color:#ffffff !important;">
+                            Xで共有する
+                        </button>
+                        <button type="button"
+                                @click="shareWithDevice"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-md border border-blue-600"
+                                style="background-color:#2563eb !important; color:#ffffff !important;">
+                            スマホで共有
+                        </button>
+                        <button type="button"
+                                @click="finishAfterSubmit"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
+                            閉じる
                         </button>
                     </div>
                 </div>
-            </div>
+            </template>
+        </div>
+        <!-- 固定フッターの送信ボタン（フォーム表示時のみ） -->
+        <div x-show="view === 'form'" x-cloak
+            class="px-4 sm:px-6 pb-4 pt-3 border-t border-gray-200 bg-white">
+            <button type="button" @click="submit" :disabled="loading"
+                    class="w-full inline-flex items-center justify-center px-4 py-3 rounded-xl font-semibold shadow-lg hover:bg-amber-700 transition disabled:opacity-60 border border-amber-600"
+                    style="background-color:#f59e0b !important; color:#ffffff !important;">
+                <span x-show="!loading">この内容でピンを刺す</span>
+                <span x-show="loading">送信中...</span>
+            </button>
         </div>
     </div>
 </div>
@@ -1482,7 +1609,14 @@ if (document.readyState === 'loading') {
         aria-label="画像を閉じる">&times;</button>
     <div class="bg-white rounded-2xl shadow-2xl overflow-hidden" style="width: 90%; max-width: 800px; max-height: 88vh;">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h3 class="text-lg font-semibold text-gray-900">投稿画像</h3>
+                <p id="pinImageViewerDate" class="text-sm font-semibold text-amber-700"></p>
+                <button id="pinImageViewerLikeBtn" type="button" onclick="likePinById(window._currentViewerPinId)" style="border:none;background:none;cursor:pointer;display:none;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;transition:background 0.15s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">
+                    <span id="pinImageViewerHeart" style="color:#9ca3af;font-size:22px;line-height:1;">♡</span>
+                    <span id="pinImageViewerLikeCount" style="color:#9ca3af;font-size:14px;"></span>
+                </button>
+            </div>
         </div>
         <div class="p-4 md:p-6 bg-gray-100">
             <img id="pinImageViewerImage"
@@ -1594,28 +1728,11 @@ function openRegisterModal() {
 
         // 地図ビューが非表示の場合は表示する（モーダル表示時にも地図を表示）
         const mapView = document.getElementById('mapView');
-        const listView = document.getElementById('listView');
-        const mapTab = document.getElementById('mapTab');
-        const listTab = document.getElementById('listTab');
 
         if (mapView && mapView.classList.contains('hidden')) {
-            // 地図タブをアクティブにする
-            if (mapTab) {
-                mapTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-                mapTab.classList.remove('border-transparent', 'text-gray-500');
-            }
-            if (listTab) {
-                listTab.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                listTab.classList.add('border-transparent', 'text-gray-500');
-            }
             // 地図ビューを表示
             mapView.classList.remove('hidden');
             mapView.style.display = 'block';
-            // リストビューを非表示
-            if (listView) {
-                listView.classList.add('hidden');
-                listView.style.display = 'none';
-            }
 
             // 地図のサイズを再計算（少し遅延させて確実に）
             setTimeout(() => {
@@ -1855,6 +1972,7 @@ function pinPostModal() {
         activeType: null,
         loading: false,
         locationLabel: '位置情報が未取得です',
+        isAndroid: /android/i.test(navigator.userAgent),
         types: [
             { id: 1, label: '待ち合わせ', emoji: '👋', hint: '集合場所を写真付きで共有' },
             { id: 2, label: 'お店の状況', emoji: '🍽️', hint: '店名と混雑状況を投稿' },
@@ -1875,10 +1993,14 @@ function pinPostModal() {
             tags: [],
             latitude: null,
             longitude: null,
-            imagePreview: null,
-            imageFile: null,
+            imagePreviews: [],
+            imageFiles: [],
+            imageSource: null,
             shopId: null,
+            notifyEmail: '',
         },
+        shareText: '',
+        shareUrl: '',
         currentType: { label: '', emoji: '' },
         nearbyShops: [],
         nearbyLoading: false,
@@ -1893,16 +2015,16 @@ function pinPostModal() {
             };
         },
         show() {
-            this.view = 'menu';
-            this.activeType = null;
-            this.currentType = { label: '', emoji: '' };
-            this.resetForType(null);
             this.open = true;
             this.ensureLocation();
+            this.openType(3);
         },
         close() {
             this.open = false;
             this.loading = false;
+            this.form.notifyEmail = '';
+            this.shareText = '';
+            this.shareUrl = '';
         },
         backToMenu() {
             this.view = 'menu';
@@ -1926,10 +2048,15 @@ function pinPostModal() {
         resetForType(id) {
             this.form.type = id;
             this.form.comment = '';
-            this.form.imagePreview = null;
-            this.form.imageFile = null;
+            this.revokeImagePreviews();
+            this.form.imagePreviews = [];
+            this.form.imageFiles = [];
+            this.form.imageSource = null;
             if (this.$refs?.pinFileInput) {
                 this.$refs.pinFileInput.value = '';
+            }
+            if (this.$refs?.pinCameraInput) {
+                this.$refs.pinCameraInput.value = '';
             }
 
             // 使わない項目はクリアして漏れを防ぐ
@@ -1943,22 +2070,41 @@ function pinPostModal() {
                 this.form.tags = [];
             }
         },
-        onFileChange(event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            this.form.imageFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                this.form.imagePreview = e.target?.result;
-            };
-            reader.readAsDataURL(file);
+        onFileChange(event, source = 'gallery') {
+            const selectedFiles = Array.from(event.target.files || []);
+            if (selectedFiles.length === 0) return;
+
+            const files = source === 'camera'
+                ? selectedFiles.slice(0, 1)
+                : selectedFiles;
+
+            this.revokeImagePreviews();
+            this.form.imageFiles = files;
+            this.form.imageSource = source;
+            this.form.imagePreviews = files.map(file => ({
+                name: file.name,
+                url: URL.createObjectURL(file),
+            }));
         },
         clearImage() {
-            this.form.imagePreview = null;
-            this.form.imageFile = null;
+            this.revokeImagePreviews();
+            this.form.imagePreviews = [];
+            this.form.imageFiles = [];
+            this.form.imageSource = null;
             if (this.$refs?.pinFileInput) {
                 this.$refs.pinFileInput.value = '';
             }
+            if (this.$refs?.pinCameraInput) {
+                this.$refs.pinCameraInput.value = '';
+            }
+        },
+        revokeImagePreviews() {
+            if (!Array.isArray(this.form.imagePreviews)) return;
+            this.form.imagePreviews.forEach(preview => {
+                if (preview?.url) {
+                    URL.revokeObjectURL(preview.url);
+                }
+            });
         },
         toggleTag(tag) {
             if (this.form.tags.includes(tag)) {
@@ -1970,30 +2116,95 @@ function pinPostModal() {
         selectStatus(value) {
             this.form.status = value;
         },
-        async ensureLocation() {
-            if (this.form.latitude && this.form.longitude) {
+        buildShareText(pin) {
+            const baseUrl = window.APP_BASE_URL || window.location.origin;
+            const appUrl = `${baseUrl.replace(/\/$/, '')}/?pin=${encodeURIComponent(pin.id)}`;
+            const type = this.types.find(item => Number(item.id) === Number(pin.type));
+            const lines = [
+                'OpenSeatにピンを投稿しました',
+                '',
+                type ? `${type.emoji} ${type.label}` : '',
+                pin.comment ? String(pin.comment).trim() : '',
+                `投稿を見る: ${appUrl}`,
+            ];
+
+            return lines.filter(line => line !== '').join('\n');
+        },
+        showSharePrompt(pin) {
+            this.shareText = this.buildShareText(pin);
+            this.shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(this.shareText)}`;
+            this.view = 'success';
+        },
+        shareToX() {
+            if (!this.shareUrl) return;
+            window.open(this.shareUrl, '_blank', 'noopener,noreferrer');
+        },
+        async shareWithDevice() {
+            if (!navigator.share) {
+                await this.copyShareTextFallback();
+                return;
+            }
+
+            const shareData = {
+                title: 'OpenSeat',
+                text: this.shareText,
+            };
+            const imageFile = this.form.imageFiles?.[0] || null;
+
+            if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+                shareData.files = [imageFile];
+            }
+
+            try {
+                await navigator.share(shareData);
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                console.warn('device share failed', error);
+                await this.copyShareTextFallback();
+            }
+        },
+        async copyShareTextFallback() {
+            if (navigator.clipboard && this.shareText) {
+                try {
+                    await navigator.clipboard.writeText(this.shareText);
+                    alert('共有内容をコピーしました。InstagramやTikTokで貼り付けて共有できます。');
+                    return;
+                } catch (error) {
+                    console.warn('clipboard copy failed', error);
+                }
+            }
+
+            alert('この端末ではスマホ共有を利用できません。共有内容をコピーして投稿してください。');
+        },
+        finishAfterSubmit() {
+            const submittedType = this.activeType;
+            this.close();
+            this.resetForType(submittedType);
+            this.clearImage();
+        },
+        async ensureLocation(forceRefresh = false) {
+            if (!forceRefresh && this.form.latitude && this.form.longitude) {
                 this.locationLabel = `緯度: ${parseFloat(this.form.latitude).toFixed(5)}, 経度: ${parseFloat(this.form.longitude).toFixed(5)}`;
                 return;
             }
 
+            if (!navigator.geolocation) {
+                this.locationLabel = '位置情報がサポートされていません';
+                return;
+            }
+
             try {
-                if (typeof window.getCurrentLocation === 'function') {
-                    const loc = await window.getCurrentLocation();
-                    if (loc) {
-                        this.form.latitude = loc.lat;
-                        this.form.longitude = loc.lng;
-                    }
-                } else if (navigator.geolocation) {
-                    const pos = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0,
-                        });
+                // maximumAge:30000 でカメラ撮影後の復帰時にキャッシュ済み位置情報を利用し
+                // Android でバックグラウンド移行による GPS 中断を回避する
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 6000,
+                        maximumAge: 30000,
                     });
-                    this.form.latitude = pos.coords.latitude;
-                    this.form.longitude = pos.coords.longitude;
-                }
+                });
+                this.form.latitude = pos.coords.latitude;
+                this.form.longitude = pos.coords.longitude;
             } catch (error) {
                 console.warn('位置情報の取得に失敗しました', error);
             }
@@ -2038,7 +2249,7 @@ function pinPostModal() {
                 return;
             }
 
-            if ([1, 3].includes(this.activeType) && !this.form.imageFile) {
+            if ([1, 3].includes(this.activeType) && (!this.form.imageFiles || this.form.imageFiles.length === 0)) {
                 alert('写真を追加してください');
                 this.loading = false;
                 return;
@@ -2074,8 +2285,16 @@ function pinPostModal() {
                 this.form.tags.forEach(tag => fd.append('tags[]', tag));
             }
             if (this.form.shopId) fd.append('shop_id', this.form.shopId);
-            if (this.form.imageFile) {
-                fd.append('image', this.form.imageFile);
+            if (this.form.notifyEmail) fd.append('notify_email', this.form.notifyEmail.trim());
+            if (this.form.imageSource) {
+                fd.append('image_source', this.form.imageSource);
+            }
+            if (this.form.imageFiles && this.form.imageFiles.length > 0) {
+                if (this.form.imageSource === 'gallery') {
+                    this.form.imageFiles.forEach(file => fd.append('images[]', file));
+                } else {
+                    fd.append('image', this.form.imageFiles[0]);
+                }
             }
 
             try {
@@ -2096,15 +2315,22 @@ function pinPostModal() {
                     return;
                 }
 
-                const pin = json.data || json.pin || json;
+                const pins = Array.isArray(json.pins)
+                    ? json.pins
+                    : (Array.isArray(json.data) ? json.data : [json.data || json.pin || json]);
+                const pin = pins[0];
                 if (window.pinBoard && typeof window.pinBoard.addPin === 'function') {
-                    window.pinBoard.addPin(pin);
+                    pins.forEach(item => window.pinBoard.addPin(item));
+                }
+
+                const countEl = document.getElementById('pinCountDisplay');
+                if (countEl) {
+                    const current = parseInt(countEl.textContent.match(/\d+/)?.[0] ?? '0', 10);
+                    countEl.textContent = `現在の登録数：${current + pins.length}件`;
                 }
 
                 this.loading = false;
-                this.close();
-                this.resetForType(this.activeType);
-                this.clearImage();
+                this.showSharePrompt(pin);
             } catch (error) {
                 console.error('pin submit error', error);
                 alert('投稿中にエラーが発生しました');
@@ -2118,6 +2344,7 @@ function pinPostModal() {
 window.pinBoard = {
     pins: [],
     markers: [],
+    pinMarkers: {},
     emojiByType: {
         1: '👋',
         2: '🍽️',
@@ -2127,6 +2354,22 @@ window.pinBoard = {
     statusLabel(value) {
         const map = { 0: '空き', 1: '待ち', 2: '満席' };
         return map[value] || '';
+    },
+    formatShotDate(value) {
+        if (!value) return '';
+
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        }).formatToParts(date);
+
+        const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
     },
     resolveImageUrl(pin = {}) {
         const imagePath = pin.image_path || pin.imagePath || null;
@@ -2179,17 +2422,28 @@ window.pinBoard = {
 
         this.markers.forEach(marker => inlineMap.removeLayer(marker));
         this.markers = [];
+        this.pinMarkers = {};
 
         this.pins.forEach(pin => {
             if (!pin.latitude || !pin.longitude) return;
 
-            const icon = createEmojiIcon(this.emojiByType[pin.type] || '📍');
+            const shotDate = this.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
+            const icon = createEmojiIcon(this.emojiByType[pin.type] || '📍', shotDate);
             const popupHtml = this.buildPopup(pin);
 
             const marker = L.marker([pin.latitude, pin.longitude], { icon }).addTo(inlineMap);
             marker.bindPopup(popupHtml);
             this.markers.push(marker);
+            if (pin.id !== undefined && pin.id !== null) {
+                this.pinMarkers[String(pin.id)] = marker;
+            }
         });
+
+        // リストタブが表示中なら一覧を更新
+        const listView = document.getElementById('listView');
+        if (listView && !listView.classList.contains('hidden')) {
+            renderPinList();
+        }
     },
     buildPopup(pin) {
         const escapeHtml = (text = '') => String(text).replace(/[&<>"']/g, (char) => ({
@@ -2203,6 +2457,10 @@ window.pinBoard = {
         const tags = pin.tags || [];
         const imageUrl = this.resolveImageUrl(pin);
         const storeName = pin.storeName || pin.store_name;
+        const shotDate = this.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
+        const shotDateHtml = shotDate
+            ? `<span class="text-xs font-semibold text-amber-700 whitespace-nowrap">${escapeHtml(shotDate)}</span>`
+            : '';
 
         const tagsHtml = tags && tags.length
             ? `<div class="flex flex-wrap gap-1 mt-2">${tags.map(tag => `<span class="px-2 py-1 bg-amber-100 text-amber-800 rounded-full text-xs">${escapeHtml(tag)}</span>`).join('')}</div>`
@@ -2213,7 +2471,7 @@ window.pinBoard = {
             : '';
 
         const imageHtml = imageUrl
-            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}">`
+            ? `<img src="${escapeHtml(imageUrl)}" class="pin-popup-image w-full max-h-40 object-cover rounded-lg mb-2 cursor-zoom-in" alt="投稿画像" data-full-src="${escapeHtml(imageUrl)}" data-message="${escapeHtml(pin.comment || '')}" data-shot-date="${escapeHtml(shotDate)}" data-pin-id="${pin.id !== undefined && pin.id !== null ? pin.id : ''}">`
             : '';
 
         const commentHtml = pin.comment
@@ -2224,9 +2482,17 @@ window.pinBoard = {
             ? `<p class="text-sm font-semibold text-gray-900">${escapeHtml(storeName)}</p>`
             : '';
 
+        const likeCount = pin.likeCount !== undefined ? pin.likeCount : (pin.like_count || 0);
+        const likeHeart = likeCount > 0 ? '♥' : '♡';
+        const likeStyle = likeCount > 0 ? 'color:#f59e0b' : 'color:#9ca3af';
+        const likeCountText = likeCount > 0 ? String(likeCount) : '';
+        const popupLikeHtml = (pin.id !== undefined && pin.id !== null)
+            ? `<button class="pin-like-btn" data-pin-id="${pin.id}" onclick="likePinById(${pin.id})" style="border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:999px;transition:background 0.15s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'"><span class="pin-like-heart" style="${likeStyle};font-size:18px;line-height:1;">${likeHeart}</span><span class="pin-like-count" style="color:#9ca3af;font-size:12px;">${likeCountText}</span></button>`
+            : '';
+
         return `
             <div class="space-y-2">
-                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}<span>${escapeHtml(storeName || '')}</span></div>
+                <div class="flex items-center gap-2 text-lg font-bold">${this.emojiByType[pin.type] || '📍'}${shotDateHtml}${popupLikeHtml}<span>${escapeHtml(storeName || '')}</span></div>
                 ${imageHtml}
                 ${storeHtml}
                 ${statusHtml}
@@ -2249,6 +2515,8 @@ window.pinBoard = {
             imageUrl: this.resolveImageUrl(pin),
             shopId: pin.shop_id || pin.shopId || null,
             createdAt: pin.created_at || pin.createdAt,
+            takenAt: pin.taken_at || pin.takenAt || null,
+            likeCount: pin.like_count || pin.likeCount || 0,
         };
 
         if (normalized.id !== undefined && normalized.id !== null) {
@@ -2300,30 +2568,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupPinImageViewer();
+
+    // ?pin= パラメータでピンにフォーカス
+    const pinIdFromUrl = new URLSearchParams(window.location.search).get('pin');
+    if (pinIdFromUrl) {
+        focusPinById(pinIdFromUrl);
+    }
 });
 
-function openPinImageViewer(src, altText = '拡大画像', message = '') {
+function openPinImageViewer(src, altText = '拡大画像', message = '', shotDate = '', pinId = null) {
     const viewer = document.getElementById('pinImageViewer');
     const image = document.getElementById('pinImageViewerImage');
     const messageEl = document.getElementById('pinImageViewerMessage');
+    const dateEl = document.getElementById('pinImageViewerDate');
 
     if (!viewer || !image || !src) return;
 
     image.src = src;
     image.alt = altText;
+    if (dateEl) {
+        dateEl.textContent = shotDate || '';
+        dateEl.classList.toggle('hidden', !shotDate);
+    }
     if (messageEl) {
         const text = (message || '').trim();
         messageEl.textContent = text || 'コメントなし';
     }
+    // ♡ いいねボタンの状態を更新
+    window._currentViewerPinId = pinId;
+    const viewerLikeBtn = document.getElementById('pinImageViewerLikeBtn');
+    const viewerHeart = document.getElementById('pinImageViewerHeart');
+    const viewerCount = document.getElementById('pinImageViewerLikeCount');
+    if (viewerHeart && viewerCount && viewerLikeBtn) {
+        if (pinId !== null && pinId !== undefined) {
+            const pin = window.pinBoard && window.pinBoard.pins
+                ? window.pinBoard.pins.find(p => String(p.id) === String(pinId))
+                : null;
+            const lc = pin ? (pin.likeCount !== undefined ? pin.likeCount : (pin.like_count || 0)) : 0;
+            viewerHeart.textContent = lc > 0 ? '♥' : '♡';
+            viewerHeart.style.color = lc > 0 ? '#f59e0b' : '#9ca3af';
+            viewerCount.textContent = lc > 0 ? lc : '';
+            viewerLikeBtn.style.display = 'inline-flex';
+        } else {
+            viewerHeart.textContent = '♡';
+            viewerHeart.style.color = '#9ca3af';
+            viewerCount.textContent = '';
+            viewerLikeBtn.style.display = 'none';
+        }
+    }
+
     viewer.classList.remove('hidden');
     viewer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
 }
 
 function closePinImageViewer() {
+    window._currentViewerPinId = null;
     const viewer = document.getElementById('pinImageViewer');
     const image = document.getElementById('pinImageViewerImage');
     const messageEl = document.getElementById('pinImageViewerMessage');
+    const dateEl = document.getElementById('pinImageViewerDate');
 
     if (!viewer || !image) return;
 
@@ -2332,6 +2636,10 @@ function closePinImageViewer() {
     image.src = '';
     if (messageEl) {
         messageEl.textContent = 'コメントなし';
+    }
+    if (dateEl) {
+        dateEl.textContent = '';
+        dateEl.classList.add('hidden');
     }
     document.body.style.overflow = '';
 }
@@ -2363,19 +2671,124 @@ function setupPinImageViewer() {
 
         const src = target.dataset.fullSrc || target.src;
         const message = target.dataset.message || '';
-        openPinImageViewer(src, target.alt || '拡大画像', message);
+        const shotDate = target.dataset.shotDate || '';
+        const pinId = target.dataset.pinId || null;
+        openPinImageViewer(src, target.alt || '拡大画像', message, shotDate, pinId);
     });
 }
 
 // 絵文字マーカーを生成
-function createEmojiIcon(emoji) {
+function createEmojiIcon(emoji, shotDate = '') {
+    const escapedDate = String(shotDate || '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[char]));
+
     return L.divIcon({
         className: 'emoji-pin-marker',
-        html: `<div class="flex items-center justify-center text-2xl" style="width: 36px; height: 36px;">${emoji || '📍'}</div>`,
-        iconSize: [36, 36],
+        html: `<div style="display:flex; align-items:center; justify-content:center; gap:3px; width:118px; height:36px;">
+            <div class="flex items-center justify-center text-2xl" style="width: 36px; height: 36px;">${emoji || '📍'}</div>
+            ${escapedDate ? `<div style="background:#ffffff; color:#92400e; border:1px solid #fcd34d; border-radius:9999px; padding:1px 6px; font-size:11px; font-weight:700; line-height:16px; box-shadow:0 1px 3px rgba(0,0,0,0.18); white-space:nowrap;">${escapedDate}</div>` : ''}
+        </div>`,
+        iconSize: [118, 36],
         iconAnchor: [18, 36],
     });
 }
+
+// ♡ いいね処理
+async function likePinById(pinId) {
+    if (pinId === null || pinId === undefined) return;
+
+    const baseUrl = window.APP_BASE_URL || '';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    try {
+        const response = await fetch(`${baseUrl}/api/pins/${pinId}/like`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const newCount = data.like_count;
+
+        // メモリ上のピンデータを更新
+        if (window.pinBoard && window.pinBoard.pins) {
+            const pin = window.pinBoard.pins.find(p => String(p.id) === String(pinId));
+            if (pin) {
+                pin.likeCount = newCount;
+                pin.like_count = newCount;
+            }
+        }
+
+        // DOM上の全 ♡ ボタンを更新（ポップアップ・リスト共通）
+        document.querySelectorAll(`.pin-like-btn[data-pin-id="${pinId}"]`).forEach(btn => {
+            const heartEl = btn.querySelector('.pin-like-heart');
+            const countEl = btn.querySelector('.pin-like-count');
+            if (heartEl) {
+                heartEl.textContent = newCount > 0 ? '♥' : '♡';
+                heartEl.style.color = newCount > 0 ? '#f59e0b' : '#9ca3af';
+            }
+            if (countEl) {
+                countEl.textContent = newCount > 0 ? newCount : '';
+            }
+        });
+
+        // 画像ビューアが開いていれば更新
+        if (window._currentViewerPinId !== null && String(window._currentViewerPinId) === String(pinId)) {
+            const viewerHeart = document.getElementById('pinImageViewerHeart');
+            const viewerCount = document.getElementById('pinImageViewerLikeCount');
+            if (viewerHeart) {
+                viewerHeart.textContent = newCount > 0 ? '♥' : '♡';
+                viewerHeart.style.color = newCount > 0 ? '#f59e0b' : '#9ca3af';
+            }
+            if (viewerCount) {
+                viewerCount.textContent = newCount > 0 ? newCount : '';
+            }
+        }
+
+        // リストタブが表示中なら再描画
+        const listView = document.getElementById('listView');
+        if (listView && !listView.classList.contains('hidden')) {
+            renderPinList();
+        }
+    } catch (error) {
+        console.error('いいねに失敗しました:', error);
+    }
+}
+
+// ?pin= URL パラメータで該当ピンにフォーカスする
+async function focusPinById(pinId) {
+    // 地図の初期化を最大 6 秒待つ
+    let waited = 0;
+    while (!inlineMap && waited < 6000) {
+        await new Promise(r => setTimeout(r, 300));
+        waited += 300;
+    }
+    if (!inlineMap) return;
+
+    // ピンデータのロードを最大 4 秒待つ
+    waited = 0;
+    while (window.pinBoard.pins.length === 0 && waited < 4000) {
+        await new Promise(r => setTimeout(r, 300));
+        waited += 300;
+    }
+
+    const pin = window.pinBoard.pins.find(p => String(p.id) === String(pinId));
+    if (!pin || !pin.latitude || !pin.longitude) return;
+
+    inlineMap.flyTo([pin.latitude, pin.longitude], 17, { animate: true, duration: 1 });
+
+    const marker = window.pinBoard.pinMarkers && window.pinBoard.pinMarkers[String(pinId)];
+    if (marker) {
+        setTimeout(() => marker.openPopup(), 1100);
+    }
+}
 </script>
 @endsection
-

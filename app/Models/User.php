@@ -29,6 +29,9 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'banner_text',
+        'banner_text_color',
+        'banner_bg_color',
     ];
     /**
      * Check if user is admin

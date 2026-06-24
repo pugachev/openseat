@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\Auth\LoginController;
 use App\Http\Controllers\Admin\Auth\RegisterController;
+use App\Http\Controllers\Admin\PageViewController;
 use App\Http\Controllers\AdminShopController;
 use App\Http\Controllers\PinController;
 use App\Http\Controllers\ShopController;
@@ -17,6 +18,7 @@ Route::post('/api/shops/{secret_key}/name', [ShopController::class, 'updateName'
 // ピン掲示板 API
 Route::get('/api/pins', [PinController::class, 'index']);
 Route::post('/api/pins', [PinController::class, 'store']);
+Route::post('/api/pins/{id}/like', [PinController::class, 'like']);
 Route::get('/api/pins/download', [PinController::class, 'download']);
 Route::get('/media/{path}', [PinController::class, 'image'])
     ->where('path', '.*')
@@ -42,5 +44,7 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
         return redirect()->route('admin.shops.index');
     });
 
+    Route::get('/page-views', [PageViewController::class, 'index'])->name('page_views.index');
+    Route::post('/banner', [AdminShopController::class, 'updateBanner'])->name('banner.update');
     Route::resource('shops', AdminShopController::class);
 });

@@ -342,3 +342,8 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 # .env　config/ routes/を更新した際は発行が必要
 php8.2 artisan optimize:clear
 php8.2 artisan optimize
+
+
+# PVチェック
+https://openseat.ikefukuro40.tech/admin/login
+[admin/page-views](https://openseat.ikefukuro40.tech/admin/page-views)

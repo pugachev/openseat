@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Alpine.js x-cloak: headで読み込みフラッシュを防ぐ */
+[x-cloak] { display: none !important; }
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
