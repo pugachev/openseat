@@ -668,15 +668,6 @@ function displayShopsOnMap(shops, userLat, userLng) {
         inlineMarkers.push(marker);
     });
 
-    // すべてのマーカーが表示されるように地図を調整
-    if (inlineMarkers.length > 0) {
-        const bounds = L.latLngBounds(inlineMarkers.map(m => m.getLatLng()));
-        bounds.extend([userLat, userLng]);
-        inlineMap.fitBounds(bounds.pad(0.2), {
-            maxZoom: 16
-        });
-    }
-
     // リスト表示も更新
     updateShopList(shops);
 }
@@ -1053,10 +1044,10 @@ function renderPinList() {
 
     const pins = window.pinBoard && window.pinBoard.pins ? [...window.pinBoard.pins] : [];
 
-    // 登録日時の降順にソート
+    // 撮影日時（ない場合は登録日時）の降順にソート
     pins.sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.created_at || 0);
-        const dateB = new Date(b.createdAt || b.created_at || 0);
+        const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
         return dateB - dateA;
     });
 
@@ -1070,7 +1061,7 @@ function renderPinList() {
 
     container.innerHTML = pins.map(pin => {
         const emoji = emojiByType[pin.type] || '📍';
-        const shotDate = window.pinBoard.formatShotDate(pin.createdAt || pin.created_at);
+        const shotDate = window.pinBoard.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
         const storeName = pin.storeName || pin.store_name || '';
         const comment = pin.comment || '';
         const tags = pin.tags || [];
@@ -1430,16 +1421,27 @@ if (document.readyState === 'loading') {
                     <div x-show="[1,3].includes(activeType)" class="space-y-4" x-cloak>
                         <div class="relative border-2 border-dashed border-amber-200 rounded-xl h-56 flex items-center justify-center bg-amber-50 hover:border-amber-300 transition-colors overflow-hidden"
                              :class="{ 'cursor-pointer': !isAndroid }"
-                             @click="!isAndroid && !form.imagePreview ? $refs.pinFileInput.click() : null">
-                            <template x-if="form.imagePreview">
-                                <div class="relative w-full h-full">
-                                    <img :src="form.imagePreview" alt="preview" class="w-full h-full object-cover rounded-xl">
+                             @click="!isAndroid && form.imagePreviews.length === 0 ? $refs.pinFileInput.click() : null">
+                            <template x-if="form.imagePreviews.length > 0">
+                                <div class="relative w-full h-full p-2">
+                                    <div class="grid gap-2 h-full"
+                                         :class="form.imagePreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
+                                        <template x-for="preview in form.imagePreviews.slice(0, 4)" :key="preview.url">
+                                            <div class="relative overflow-hidden rounded-lg bg-white">
+                                                <img :src="preview.url" alt="preview" class="w-full h-full object-cover">
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div x-show="form.imagePreviews.length > 4"
+                                         class="absolute bottom-3 left-3 px-2 py-1 rounded-full bg-black/60 text-white text-xs font-semibold">
+                                        +<span x-text="form.imagePreviews.length - 4"></span>
+                                    </div>
                                     <button type="button" @click.stop="clearImage"
                                             class="absolute top-3 right-3 bg-black/60 text-white rounded-full p-2 shadow">✕</button>
                                 </div>
                             </template>
                             {{-- プレビューなし: Android は2ボタン、iOS/PC は従来通りタップ --}}
-                            <div x-show="!form.imagePreview" class="w-full px-4">
+                            <div x-show="form.imagePreviews.length === 0" class="w-full px-4">
                                 {{-- Android: カメラとギャラリーを縦並び全幅ボタンで表示 --}}
                                 <div x-show="isAndroid" class="w-full flex flex-col gap-3">
                                     <button type="button"
@@ -1453,17 +1455,24 @@ if (document.readyState === 'loading') {
                                         🖼️ ギャラリーから
                                     </button>
                                 </div>
-                                {{-- iOS / PC: 従来通りタップで選択ダイアログ --}}
-                                <div x-show="!isAndroid" class="text-center text-gray-500">
-                                    <div class="text-3xl mb-2">📷</div>
-                                    <p class="font-medium">タップして写真を追加</p>
-                                    <p class="text-xs text-gray-400">カメラ / ファイルを起動します</p>
+                                {{-- iOS / PC: 撮影とローカル複数選択を明示的に分ける --}}
+                                <div x-show="!isAndroid" class="w-full flex flex-col sm:flex-row gap-3">
+                                    <button type="button"
+                                            @click.stop="$refs.pinCameraInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg shadow hover:bg-amber-600 active:bg-amber-700 transition-colors">
+                                        📸 カメラで撮影
+                                    </button>
+                                    <button type="button"
+                                            @click.stop="$refs.pinFileInput.click()"
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg shadow hover:bg-gray-300 active:bg-gray-400 transition-colors">
+                                        🖼️ ギャラリーから
+                                    </button>
                                 </div>
                             </div>
                             {{-- Android: カメラ直接起動用 --}}
-                            <input type="file" x-ref="pinCameraInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange">
+                            <input type="file" x-ref="pinCameraInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange($event, 'camera')">
                             {{-- 共通: ギャラリー・ファイル選択（iOS はこれ1つで選択ダイアログが出る） --}}
-                            <input type="file" x-ref="pinFileInput" accept="image/*" class="hidden" @change="onFileChange">
+                            <input type="file" x-ref="pinFileInput" accept="image/*" multiple class="hidden" @change="onFileChange($event, 'gallery')">
                         </div>
                         <input type="text"
                                x-model="form.comment"
@@ -1991,8 +2000,9 @@ function pinPostModal() {
             tags: [],
             latitude: null,
             longitude: null,
-            imagePreview: null,
-            imageFile: null,
+            imagePreviews: [],
+            imageFiles: [],
+            imageSource: null,
             shopId: null,
             notifyEmail: '',
         },
@@ -2045,8 +2055,10 @@ function pinPostModal() {
         resetForType(id) {
             this.form.type = id;
             this.form.comment = '';
-            this.form.imagePreview = null;
-            this.form.imageFile = null;
+            this.revokeImagePreviews();
+            this.form.imagePreviews = [];
+            this.form.imageFiles = [];
+            this.form.imageSource = null;
             if (this.$refs?.pinFileInput) {
                 this.$refs.pinFileInput.value = '';
             }
@@ -2065,25 +2077,41 @@ function pinPostModal() {
                 this.form.tags = [];
             }
         },
-        onFileChange(event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            this.form.imageFile = file;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                this.form.imagePreview = e.target?.result;
-            };
-            reader.readAsDataURL(file);
+        onFileChange(event, source = 'gallery') {
+            const selectedFiles = Array.from(event.target.files || []);
+            if (selectedFiles.length === 0) return;
+
+            const files = source === 'camera'
+                ? selectedFiles.slice(0, 1)
+                : selectedFiles;
+
+            this.revokeImagePreviews();
+            this.form.imageFiles = files;
+            this.form.imageSource = source;
+            this.form.imagePreviews = files.map(file => ({
+                name: file.name,
+                url: URL.createObjectURL(file),
+            }));
         },
         clearImage() {
-            this.form.imagePreview = null;
-            this.form.imageFile = null;
+            this.revokeImagePreviews();
+            this.form.imagePreviews = [];
+            this.form.imageFiles = [];
+            this.form.imageSource = null;
             if (this.$refs?.pinFileInput) {
                 this.$refs.pinFileInput.value = '';
             }
             if (this.$refs?.pinCameraInput) {
                 this.$refs.pinCameraInput.value = '';
             }
+        },
+        revokeImagePreviews() {
+            if (!Array.isArray(this.form.imagePreviews)) return;
+            this.form.imagePreviews.forEach(preview => {
+                if (preview?.url) {
+                    URL.revokeObjectURL(preview.url);
+                }
+            });
         },
         toggleTag(tag) {
             if (this.form.tags.includes(tag)) {
@@ -2128,7 +2156,7 @@ function pinPostModal() {
                 title: 'OpenSeat',
                 text: this.shareText,
             };
-            const imageFile = this.form.imageFile;
+            const imageFile = this.form.imageFiles?.[0] || null;
 
             if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
                 shareData.files = [imageFile];
@@ -2228,7 +2256,7 @@ function pinPostModal() {
                 return;
             }
 
-            if ([1, 3].includes(this.activeType) && !this.form.imageFile) {
+            if ([1, 3].includes(this.activeType) && (!this.form.imageFiles || this.form.imageFiles.length === 0)) {
                 alert('写真を追加してください');
                 this.loading = false;
                 return;
@@ -2265,8 +2293,15 @@ function pinPostModal() {
             }
             if (this.form.shopId) fd.append('shop_id', this.form.shopId);
             if (this.form.notifyEmail) fd.append('notify_email', this.form.notifyEmail.trim());
-            if (this.form.imageFile) {
-                fd.append('image', this.form.imageFile);
+            if (this.form.imageSource) {
+                fd.append('image_source', this.form.imageSource);
+            }
+            if (this.form.imageFiles && this.form.imageFiles.length > 0) {
+                if (this.form.imageSource === 'gallery') {
+                    this.form.imageFiles.forEach(file => fd.append('images[]', file));
+                } else {
+                    fd.append('image', this.form.imageFiles[0]);
+                }
             }
 
             try {
@@ -2287,15 +2322,18 @@ function pinPostModal() {
                     return;
                 }
 
-                const pin = json.data || json.pin || json;
+                const pins = Array.isArray(json.pins)
+                    ? json.pins
+                    : (Array.isArray(json.data) ? json.data : [json.data || json.pin || json]);
+                const pin = pins[0];
                 if (window.pinBoard && typeof window.pinBoard.addPin === 'function') {
-                    window.pinBoard.addPin(pin);
+                    pins.forEach(item => window.pinBoard.addPin(item));
                 }
 
                 const countEl = document.getElementById('pinCountDisplay');
                 if (countEl) {
                     const current = parseInt(countEl.textContent.match(/\d+/)?.[0] ?? '0', 10);
-                    countEl.textContent = `現在の登録数：${current + 1}件`;
+                    countEl.textContent = `現在の登録数：${current + pins.length}件`;
                 }
 
                 this.loading = false;
@@ -2396,7 +2434,7 @@ window.pinBoard = {
         this.pins.forEach(pin => {
             if (!pin.latitude || !pin.longitude) return;
 
-            const shotDate = this.formatShotDate(pin.createdAt || pin.created_at);
+            const shotDate = this.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
             const icon = createEmojiIcon(this.emojiByType[pin.type] || '📍', shotDate);
             const popupHtml = this.buildPopup(pin);
 
@@ -2426,7 +2464,7 @@ window.pinBoard = {
         const tags = pin.tags || [];
         const imageUrl = this.resolveImageUrl(pin);
         const storeName = pin.storeName || pin.store_name;
-        const shotDate = this.formatShotDate(pin.createdAt || pin.created_at);
+        const shotDate = this.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
         const shotDateHtml = shotDate
             ? `<span class="text-xs font-semibold text-amber-700 whitespace-nowrap">${escapeHtml(shotDate)}</span>`
             : '';
@@ -2484,6 +2522,7 @@ window.pinBoard = {
             imageUrl: this.resolveImageUrl(pin),
             shopId: pin.shop_id || pin.shopId || null,
             createdAt: pin.created_at || pin.createdAt,
+            takenAt: pin.taken_at || pin.takenAt || null,
             likeCount: pin.like_count || pin.likeCount || 0,
         };
 

@@ -18,6 +18,7 @@ class Pin extends Model
         'comment',
         'tags',
         'image_path',
+        'taken_at',
         'user_id',
         'shop_id',
     ];
@@ -29,6 +30,7 @@ class Pin extends Model
         'status' => 'integer',
         'tags' => 'array',
         'like_count' => 'integer',
+        'taken_at' => 'datetime',
     ];
 
     protected $appends = [
