@@ -1440,9 +1440,8 @@ if (document.readyState === 'loading') {
                                             class="absolute top-3 right-3 bg-black/60 text-white rounded-full p-2 shadow">✕</button>
                                 </div>
                             </template>
-                            {{-- プレビューなし: Android は2ボタン、iOS/PC は従来通りタップ --}}
+                            {{-- プレビューなし: Androidは撮影と選択を分け、iOS/PCはOS標準メニューに任せる --}}
                             <div x-show="form.imagePreviews.length === 0" class="w-full px-4">
-                                {{-- Android: カメラとギャラリーを縦並び全幅ボタンで表示 --}}
                                 <div x-show="isAndroid" class="w-full flex flex-col gap-3">
                                     <button type="button"
                                             @click.stop="$refs.pinCameraInput.click()"
@@ -1455,23 +1454,17 @@ if (document.readyState === 'loading') {
                                         🖼️ ギャラリーから
                                     </button>
                                 </div>
-                                {{-- iOS / PC: 撮影とローカル複数選択を明示的に分ける --}}
-                                <div x-show="!isAndroid" class="w-full flex flex-col sm:flex-row gap-3">
-                                    <button type="button"
-                                            @click.stop="$refs.pinCameraInput.click()"
-                                            class="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg shadow hover:bg-amber-600 active:bg-amber-700 transition-colors">
-                                        📸 カメラで撮影
-                                    </button>
+                                <div x-show="!isAndroid">
                                     <button type="button"
                                             @click.stop="$refs.pinFileInput.click()"
-                                            class="w-full flex items-center justify-center gap-2 py-3 bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg shadow hover:bg-gray-300 active:bg-gray-400 transition-colors">
-                                        🖼️ ギャラリーから
+                                            class="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-gray-900 text-sm font-semibold rounded-lg shadow hover:bg-amber-600 active:bg-amber-700 transition-colors">
+                                        📷 画像を投稿
                                     </button>
                                 </div>
                             </div>
                             {{-- Android: カメラ直接起動用 --}}
                             <input type="file" x-ref="pinCameraInput" accept="image/*" capture="environment" class="hidden" @change="onFileChange($event, 'camera')">
-                            {{-- 共通: ギャラリー・ファイル選択（iOS はこれ1つで選択ダイアログが出る） --}}
+                            {{-- ギャラリー / OS標準メニュー用 --}}
                             <input type="file" x-ref="pinFileInput" accept="image/*" multiple class="hidden" @change="onFileChange($event, 'gallery')">
                         </div>
                         <input type="text"

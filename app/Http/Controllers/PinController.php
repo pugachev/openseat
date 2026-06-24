@@ -36,12 +36,17 @@ class PinController extends Controller
             'status' => ['nullable', Rule::in([0, 1, 2])],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:50'],
-            'image' => ['nullable', 'image', 'max:5120'], // 5MB
+            'image' => ['nullable', 'image', 'max:20480'], // 20MB
             'images' => ['nullable', 'array', 'max:20'],
-            'images.*' => ['image', 'max:5120'],
+            'images.*' => ['image', 'max:20480'],
             'image_source' => ['nullable', Rule::in(['camera', 'gallery'])],
             'shop_id' => ['nullable', 'integer', 'exists:shops,id'],
             'notify_email' => ['nullable', 'email', 'max:255'],
+        ], [
+            'image.max' => '画像サイズは20MB以下にしてください。',
+            'images.*.max' => '画像サイズは1枚あたり20MB以下にしてください。',
+            'image.image' => '画像ファイルを選択してください。',
+            'images.*.image' => '画像ファイルを選択してください。',
         ]);
 
         $validator->after(function ($validator) use ($request) {
