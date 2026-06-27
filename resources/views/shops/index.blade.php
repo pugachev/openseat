@@ -1037,18 +1037,47 @@ function refreshMapWithCurrentLocation() {
     );
 }
 
-// ピンリストを登録日時の降順で描画
+let pinListSortOrder = 'desc';
+
+function setPinListSort(order) {
+    pinListSortOrder = order;
+    const ascBtn = document.getElementById('sortAscBtn');
+    const descBtn = document.getElementById('sortDescBtn');
+    if (ascBtn && descBtn) {
+        ascBtn.className = `px-2 py-1 text-xs rounded border ${order === 'asc' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`;
+        descBtn.className = `px-2 py-1 text-xs rounded border ${order === 'desc' ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-100'}`;
+    }
+    renderPinList();
+}
+
+function checkAndShowListBadge(pins) {
+    const badge = document.getElementById('listNewBadge');
+    if (!badge || !pins || pins.length === 0) return;
+    const lastSeen = localStorage.getItem('listTabLastSeen');
+    if (!lastSeen) {
+        badge.classList.remove('hidden');
+        return;
+    }
+    const lastSeenTime = parseInt(lastSeen, 10);
+    const hasNew = pins.some(pin => {
+        const t = new Date(pin.created_at || pin.createdAt || 0).getTime();
+        return t > lastSeenTime;
+    });
+    if (hasNew) badge.classList.remove('hidden');
+}
+
+// ピンリストを撮影日時順で描画
 function renderPinList() {
     const container = document.getElementById('pinListContainer');
     if (!container) return;
 
     const pins = window.pinBoard && window.pinBoard.pins ? [...window.pinBoard.pins] : [];
 
-    // 撮影日時（ない場合は登録日時）の降順にソート
+    // 撮影日時（ない場合は登録日時）でソート
     pins.sort((a, b) => {
         const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
         const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
-        return dateB - dateA;
+        return pinListSortOrder === 'asc' ? dateA - dateB : dateB - dateA;
     });
 
     if (pins.length === 0) {
@@ -1156,6 +1185,10 @@ function setupTabsInline() {
         mapTab.classList.add('border-transparent', 'text-gray-500');
         mapView.classList.add('hidden');
         listView.classList.remove('hidden');
+        // バッジを消してタイムスタンプ保存
+        const badge = document.getElementById('listNewBadge');
+        if (badge) badge.classList.add('hidden');
+        localStorage.setItem('listTabLastSeen', Date.now().toString());
         renderPinList();
     });
 }
@@ -1301,8 +1334,8 @@ if (document.readyState === 'loading') {
         <button id="mapTab" class="tab-button active py-4 px-1 border-b-2 border-blue-500 font-medium text-blue-600">
             🗺️ 地図
         </button>
-        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700">
-            📋 リスト
+        <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 relative">
+            📋 リスト<span id="listNewBadge" class="hidden ml-1.5 inline-block w-2.5 h-2.5 bg-red-500 rounded-full align-middle"></span>
         </button>
     </nav>
 </div>
@@ -1347,6 +1380,11 @@ if (document.readyState === 'loading') {
 
 <!-- ピンリスト表示エリア -->
 <div id="listView" class="tab-content hidden">
+    <div class="flex justify-end items-center gap-2 mb-2">
+        <span class="text-xs text-gray-500">並び替え</span>
+        <button id="sortAscBtn" onclick="setPinListSort('asc')" class="px-2 py-1 text-xs rounded border border-gray-300 text-gray-600 hover:bg-gray-100">△ 昇順</button>
+        <button id="sortDescBtn" onclick="setPinListSort('desc')" class="px-2 py-1 text-xs rounded border bg-blue-100 border-blue-400 text-blue-700">▽ 降順</button>
+    </div>
     <div id="pinListContainer" class="divide-y divide-gray-100">
         <p class="text-gray-500 py-8 text-center">読み込み中...</p>
     </div>
@@ -2564,7 +2602,9 @@ window.pinBoard = {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.pinBoard) {
-        window.pinBoard.loadInitialPins();
+        window.pinBoard.loadInitialPins().then(() => {
+            checkAndShowListBadge(window.pinBoard.pins);
+        });
     }
 
     setupPinImageViewer();

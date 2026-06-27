@@ -5,7 +5,6 @@
 @section('content')
 <div class="max-w-7xl mx-auto">
     <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h2 class="text-2xl font-bold text-gray-900">店舗一覧</h2>
         <div class="flex gap-3 flex-wrap">
             <a href="{{ route('admin.page_views.index') }}"
                class="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors font-medium">
@@ -25,12 +24,7 @@
         </div>
     </div>
 
-    @if($shops->isEmpty())
-        <div class="bg-white rounded-lg shadow-lg p-8 text-center">
-            <p class="text-gray-600">登録されている店舗がありません</p>
-        </div>
-    @else
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -114,7 +108,6 @@
             </table>
             </div>
         </div>
-    @endif
 </div>
 
 <!-- バナー投稿モーダル -->
