@@ -1185,7 +1185,7 @@ function setupTabsInline() {
         mapTab.classList.add('border-transparent', 'text-gray-500');
         mapView.classList.add('hidden');
         listView.classList.remove('hidden');
-        // バッジを消してタイムスタンプ保存
+        // リストタブクリックでバッジを消してタイムスタンプ保存
         const badge = document.getElementById('listNewBadge');
         if (badge) badge.classList.add('hidden');
         localStorage.setItem('listTabLastSeen', Date.now().toString());
