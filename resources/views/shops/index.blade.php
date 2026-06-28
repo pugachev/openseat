@@ -1055,7 +1055,7 @@ function checkAndShowListBadge(pins) {
     if (!badge || !pins || pins.length === 0) return;
     const lastSeen = localStorage.getItem('listTabLastSeen');
     if (!lastSeen) {
-        badge.classList.remove('hidden');
+        badge.style.display = 'inline-block';
         return;
     }
     const lastSeenTime = parseInt(lastSeen, 10);
@@ -1063,7 +1063,7 @@ function checkAndShowListBadge(pins) {
         const t = new Date(pin.created_at || pin.createdAt || 0).getTime();
         return t > lastSeenTime;
     });
-    if (hasNew) badge.classList.remove('hidden');
+    if (hasNew) badge.style.display = 'inline-block';
 }
 
 // ピンリストを撮影日時順で描画
@@ -1187,7 +1187,7 @@ function setupTabsInline() {
         listView.classList.remove('hidden');
         // リストタブクリックでバッジを消してタイムスタンプ保存
         const badge = document.getElementById('listNewBadge');
-        if (badge) badge.classList.add('hidden');
+        if (badge) badge.style.display = 'none';
         localStorage.setItem('listTabLastSeen', Date.now().toString());
         renderPinList();
     });
@@ -1335,7 +1335,7 @@ if (document.readyState === 'loading') {
             🗺️ 地図
         </button>
         <button id="listTab" class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 relative">
-            📋 リスト<span id="listNewBadge" class="hidden ml-1.5 inline-block w-2.5 h-2.5 bg-red-500 rounded-full align-middle"></span>
+            📋 リスト<span id="listNewBadge" style="display:none" class="ml-1.5 inline-block w-2.5 h-2.5 bg-red-500 rounded-full align-middle"></span>
         </button>
     </nav>
 </div>
