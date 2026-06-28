@@ -9,7 +9,7 @@
         <div class="flex gap-3 flex-wrap">
             <a href="{{ route('admin.shops.index') }}"
                class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium">
-                店舗一覧へ戻る
+                設定一覧へ戻る
             </a>
             <form action="{{ route('admin.logout') }}" method="POST" class="inline">
                 @csrf

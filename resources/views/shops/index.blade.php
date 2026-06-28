@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', '店舗一覧 - Open Seat')
+@section('title', 'アルバム - Album')
 
 @section('content')
 <script>
