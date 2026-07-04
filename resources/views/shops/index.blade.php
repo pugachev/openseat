@@ -2137,7 +2137,7 @@ function pinPostModal() {
         },
         shareToX() {
             if (!this.shareUrl) return;
-            window.open(this.shareUrl, '_blank', 'noopener,noreferrer');
+            window.location.assign(this.shareUrl);
         },
         async shareWithDevice() {
             if (!navigator.share) {
