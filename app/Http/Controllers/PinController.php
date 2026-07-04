@@ -86,8 +86,15 @@ class PinController extends Controller
         $pins = [];
 
         foreach ($files as $file) {
+            if ($file && $imageSource !== 'gallery') {
+                Log::debug('EXIF抽出スキップ: image_sourceがgalleryではない', [
+                    'image_source' => $imageSource,
+                    'original_name' => $file->getClientOriginalName(),
+                ]);
+            }
+
             $exif = ($file && $imageSource === 'gallery')
-                ? $this->extractImageExif($file->getRealPath())
+                ? $this->extractImageExif($file, $imageSource)
                 : ['latitude' => null, 'longitude' => null, 'taken_at' => null];
 
             $pin = new Pin();
@@ -130,19 +137,31 @@ class PinController extends Controller
         ], 201);
     }
 
-    private function extractImageExif(string $path): array
+    private function extractImageExif(\Illuminate\Http\UploadedFile $file, string $imageSource): array
     {
+        $logContext = [
+            'image_source' => $imageSource,
+            'original_name' => $file->getClientOriginalName(),
+            'mime' => $file->getMimeType(),
+            'size' => $file->getSize(),
+        ];
+
+        $path = $file->getRealPath();
+
         if (!function_exists('exif_read_data')) {
+            Log::debug('EXIF抽出スキップ: exif_read_data未対応', $logContext);
             return ['latitude' => null, 'longitude' => null, 'taken_at' => null];
         }
 
         try {
             $exif = @exif_read_data($path, 'IFD0,EXIF,GPS', true);
         } catch (\Throwable $e) {
+            Log::debug('EXIF抽出失敗: 例外', $logContext + ['error' => $e->getMessage()]);
             return ['latitude' => null, 'longitude' => null, 'taken_at' => null];
         }
 
         if (!is_array($exif)) {
+            Log::debug('EXIF抽出失敗: EXIFデータなし', $logContext);
             return ['latitude' => null, 'longitude' => null, 'taken_at' => null];
         }
 
@@ -174,6 +193,21 @@ class PinController extends Controller
                 $takenAt = null;
             }
         }
+
+        Log::debug('EXIF抽出結果', $logContext + [
+            'has_gps_section' => isset($exif['GPS']),
+            'gps_keys' => array_keys($gps),
+            'gps_latitude_raw' => $gps['GPSLatitude'] ?? null,
+            'gps_longitude_raw' => $gps['GPSLongitude'] ?? null,
+            'gps_latitude_ref' => $gps['GPSLatitudeRef'] ?? null,
+            'gps_longitude_ref' => $gps['GPSLongitudeRef'] ?? null,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'date_value' => $dateValue,
+            'make' => $exif['IFD0']['Make'] ?? null,
+            'model' => $exif['IFD0']['Model'] ?? null,
+            'software' => $exif['IFD0']['Software'] ?? null,
+        ]);
 
         return [
             'latitude' => $latitude,
