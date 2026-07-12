@@ -12,9 +12,20 @@
     // 簡単なテスト
     // console.log('スクリプトが読み込まれました');
 </script>
-<div class="mb-6">
-    <h2 class="text-3xl font-bold text-gray-900 mb-2">街をアルバムにしよう</h2>
-    <p class="text-gray-600">通勤中に見つけた景色<br>旅先で出会った風景<br>その場所に写真と思い出を残せます</p>
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:gap-8">
+    <div class="md:w-1/3 md:flex-shrink-0">
+        <h2 class="text-3xl font-bold text-gray-900 mb-2">街をアルバムにしよう</h2>
+        <p class="text-gray-600">通勤中に見つけた景色<br>旅先で出会った風景<br>その場所に写真と思い出を残せます</p>
+    </div>
+
+    <!-- 投稿画像カルーセル（3枚ずつ表示・左右スクロールで全件） -->
+    <div id="pinCarousel" class="hidden mt-4 md:mt-0 md:flex-1 md:min-w-0 relative">
+        <button type="button" id="pinCarouselPrev" aria-label="前の画像へ"
+                class="pin-carousel-nav pin-carousel-nav-prev" onclick="scrollPinCarousel(-1)">‹</button>
+        <div id="pinCarouselTrack" class="pin-carousel-track"></div>
+        <button type="button" id="pinCarouselNext" aria-label="次の画像へ"
+                class="pin-carousel-nav pin-carousel-nav-next" onclick="scrollPinCarousel(1)">›</button>
+    </div>
 </div>
 
 <!-- ボタンエリア -->
@@ -1099,6 +1110,67 @@ function renderPinList() {
     }).join('');
 }
 
+// 投稿画像カルーセルを描画（左＝最新）
+function renderPinCarousel() {
+    const carousel = document.getElementById('pinCarousel');
+    const track    = document.getElementById('pinCarouselTrack');
+    if (!carousel || !track) return;
+
+    const pins = (window.pinBoard && window.pinBoard.pins ? [...window.pinBoard.pins] : [])
+        .filter(pin => pin && pin.imageUrl && pin.id !== undefined && pin.id !== null);
+
+    // 撮影日時（ない場合は登録日時）の降順 = 左から最新
+    pins.sort((a, b) => {
+        const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+    });
+
+    if (pins.length === 0) {
+        carousel.classList.add('hidden');
+        track.innerHTML = '';
+        return;
+    }
+
+    const esc = (text) => String(text || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    track.innerHTML = pins.map(pin => {
+        const shotDate = window.pinBoard.formatShotDate(pin.takenAt || pin.taken_at || pin.createdAt || pin.created_at);
+        const label = pin.storeName || pin.store_name || pin.comment || '投稿画像';
+
+        return `
+            <div class="pin-carousel-item" onclick="switchToMapAndFocus(${pin.id})" title="${esc(label)}">
+                <img src="${esc(pin.imageUrl)}" alt="${esc(label)}" loading="lazy">
+                ${shotDate ? `<div class="pin-carousel-date">${esc(shotDate)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    carousel.classList.remove('hidden');
+    updatePinCarouselNav();
+}
+
+// カルーセルを左右にスクロール（1回で表示中の3枚ぶん）
+function scrollPinCarousel(direction) {
+    const track = document.getElementById('pinCarouselTrack');
+    if (!track) return;
+    track.scrollBy({ left: direction * track.clientWidth, behavior: 'smooth' });
+}
+
+// 端に到達したら矢印を隠す
+function updatePinCarouselNav() {
+    const track = document.getElementById('pinCarouselTrack');
+    const prev  = document.getElementById('pinCarouselPrev');
+    const next  = document.getElementById('pinCarouselNext');
+    if (!track || !prev || !next) return;
+
+    const atStart = track.scrollLeft <= 1;
+    const atEnd   = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+
+    prev.style.visibility = atStart ? 'hidden' : 'visible';
+    next.style.visibility = atEnd ? 'hidden' : 'visible';
+}
+
 // リストのピンをタップ → 地図タブに切り替えてピンにフォーカス
 function switchToMapAndFocus(pinId) {
     const mapTab  = document.getElementById('mapTab');
@@ -1338,6 +1410,86 @@ if (document.readyState === 'loading') {
 .leaflet-container {
     z-index: 0 !important;
     touch-action: none;
+}
+
+/* 投稿画像カルーセル */
+.pin-carousel-track {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.pin-carousel-track::-webkit-scrollbar {
+    display: none;
+}
+.pin-carousel-item {
+    /* 常に3枚が見えるようにする（gap 0.5rem × 2 を差し引く） */
+    flex: 0 0 calc((100% - 1rem) / 3);
+    scroll-snap-align: start;
+    position: relative;
+    height: 5.5rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    cursor: pointer;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+}
+@media (min-width: 768px) {
+    .pin-carousel-item {
+        height: 9rem;
+    }
+}
+.pin-carousel-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.2s;
+}
+.pin-carousel-item:hover img {
+    transform: scale(1.05);
+}
+.pin-carousel-item .pin-carousel-date {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.35rem 0.4rem 0.25rem;
+    font-size: 10px;
+    color: #fff;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+    text-align: center;
+}
+.pin-carousel-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #374151;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.pin-carousel-nav:hover {
+    background: #fff;
+}
+.pin-carousel-nav-prev {
+    left: -0.5rem;
+}
+.pin-carousel-nav-next {
+    right: -0.5rem;
 }
 </style>
 <!-- 地図表示エリア -->
@@ -2418,6 +2570,9 @@ window.pinBoard = {
         return value;
     },
     renderPins() {
+        // カルーセルは地図の初期化を待たずに描画する
+        renderPinCarousel();
+
         if (!inlineMap) return;
 
         this.markers.forEach(marker => inlineMap.removeLayer(marker));
@@ -2565,6 +2720,12 @@ window.pinBoard = {
 document.addEventListener('DOMContentLoaded', () => {
     if (window.pinBoard) {
         window.pinBoard.loadInitialPins();
+    }
+
+    const carouselTrack = document.getElementById('pinCarouselTrack');
+    if (carouselTrack) {
+        carouselTrack.addEventListener('scroll', updatePinCarouselNav, { passive: true });
+        window.addEventListener('resize', updatePinCarouselNav);
     }
 
     setupPinImageViewer();
