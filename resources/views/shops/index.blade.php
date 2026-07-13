@@ -1119,10 +1119,10 @@ function renderPinCarousel() {
     const pins = (window.pinBoard && window.pinBoard.pins ? [...window.pinBoard.pins] : [])
         .filter(pin => pin && pin.imageUrl && pin.id !== undefined && pin.id !== null);
 
-    // 撮影日時（ない場合は登録日時）の降順 = 左から最新
+    // 投稿日時の降順 = 左から最新
     pins.sort((a, b) => {
-        const dateA = new Date(a.takenAt || a.taken_at || a.createdAt || a.created_at || 0);
-        const dateB = new Date(b.takenAt || b.taken_at || b.createdAt || b.created_at || 0);
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
         return dateB - dateA;
     });
 
